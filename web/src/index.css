@@ -248,7 +248,8 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  /* Keep spinners animating — they convey loading state — but calm everything else. */
+  *:not(.animate-spin) {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }

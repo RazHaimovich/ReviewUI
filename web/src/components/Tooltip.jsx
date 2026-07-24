@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import clsx from 'clsx'
 import {
   autoUpdate,
   flip,
@@ -17,7 +18,7 @@ import {
 // children untouched (no wrapper). Works for enabled and disabled controls;
 // because disabled buttons don't emit pointer events, wrapped controls should
 // carry `disabled:pointer-events-none` so the hover reaches this wrapper.
-export default function Tooltip({ label, children, placement = 'bottom' }) {
+export default function Tooltip({ label, children, placement = 'bottom', className }) {
   const [open, setOpen] = useState(false)
   const { refs, floatingStyles, context } = useFloating({
     open,
@@ -36,7 +37,7 @@ export default function Tooltip({ label, children, placement = 'bottom' }) {
 
   return (
     <>
-      <span ref={refs.setReference} {...getReferenceProps()} className="inline-flex">
+      <span ref={refs.setReference} {...getReferenceProps()} className={clsx('inline-flex', className)}>
         {children}
       </span>
       {open && (
