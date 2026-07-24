@@ -1,8 +1,12 @@
 name: Publish to npm
 
+# Runs on every push to main.
+# Publishes only when package.json contains a version that doesn't exist on npm.
+# After publishing, creates a Git tag for that version.
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,31 +17,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
           cache: npm
 
-      - run: npm ci
+      # Trusted Publishing requires a recent npm version.
+      - name: Update npm
+        run: npm install -g npm@latest
 
-      - run: npm test
+      - name: Show versions
+        run: |
+          node --version
+          npm --version
 
-      - name: Publish if the version is new
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Publish if version is new
+        id: publish
         run: |
           NAME=$(node -p "require('./package.json').name")
           VERSION=$(node -p "require('./package.json').version")
+
+          echo "Package: $NAME"
+          echo "Version: $VERSION"
+
           PUBLISHED=$(npm view "$NAME@$VERSION" version 2>/dev/null || true)
 
           if [ -n "$PUBLISHED" ]; then
-            echo "$NAME@$VERSION is already published — skipping."
+            echo "$NAME@$VERSION is already published — skipping publish."
           else
-            echo "Publishing $NAME@$VERSION…"
+            echo "Publishing $NAME@$VERSION..."
             npm publish --access public
+          fi
 
-            echo "Creating tag v$VERSION…"
-            git tag "v$VERSION"
-            git push origin "v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create version tag
+        env:
+          VERSION: ${{ steps.publish.outputs.version }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" > /dev/null 2>&1; then
+            echo "Tag $VERSION already exists — skipping."
+          else
+            echo "Creating tag $VERSION..."
+            git tag "$VERSION"
+            git push origin "$VERSION"
           fi
