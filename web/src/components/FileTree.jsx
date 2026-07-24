@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import clsx from 'clsx';
-import { ChevronDownIcon, ChevronRightIcon, FilePlus2Icon, FileMinus2Icon, FilePenIcon, FileDiffIcon } from 'lucide-react';
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FilePlus2Icon,
+  FileMinus2Icon,
+  FilePenIcon,
+  FileDiffIcon,
+  FolderIcon,
+  FolderOpenIcon,
+} from 'lucide-react';
 
 function buildTree(entries) {
   const root = { dirs: new Map(), files: [] };
@@ -59,14 +68,16 @@ function FileRow({ file, depth, onToggleReviewed }) {
 function Directory({ name, node, depth, onToggleReviewed }) {
   const [open, setOpen] = useState(true);
   const Chevron = open ? ChevronDownIcon : ChevronRightIcon;
+  const Folder = open ? FolderOpenIcon : FolderIcon;
   return (
     <div>
       <button
         onClick={() => setOpen(!open)}
         style={{ paddingLeft: `${depth * 12 + 4}px` }}
-        className="flex w-full items-center gap-1 rounded-md py-1 pr-2 font-mono text-xs text-faint hover:bg-panel2 hover:text-muted"
+        className="flex w-full items-center gap-1 rounded-md py-1 pr-2 font-mono text-xs text-muted hover:bg-panel2 hover:text-ink"
       >
         <Chevron className="size-3.5 shrink-0" />
+        <Folder className="size-3.5 shrink-0 text-accent" />
         <span className="truncate">{name}</span>
       </button>
       {open && <TreeLevel node={node} depth={depth + 1} onToggleReviewed={onToggleReviewed} />}
