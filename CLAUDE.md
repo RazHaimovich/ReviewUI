@@ -16,9 +16,15 @@ to paste into Claude Code.
 npm install          # install deps (build-time libs are devDependencies)
 npm run build        # build the web UI into web/dist (required before running)
 npm test             # node:test suite (HTTP API + pure helpers)
+npm run lint         # ESLint (flat config)
+npm run format       # Prettier write   (format:check verifies in CI)
+npm run spell        # cspell
 node server/index.js # run from inside any git repo (serves web/dist)
 npm run dev:web      # Vite dev server with hot reload, proxies /api to :41096
 ```
+
+CI (`.github/workflows/ci.yml`) runs lint, format:check, spell, test, and build
+on every PR. The port auto-increments from 41096 if busy.
 
 For development: run `node server/index.js` and `npm run dev:web` in two
 terminals. Set `REVIEWUI_NO_OPEN=1` to skip auto-opening the browser.
