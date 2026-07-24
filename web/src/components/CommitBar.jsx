@@ -33,7 +33,7 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
       </NavButton>
 
       <div className="flex items-center gap-1">
-        <Tooltip label={commits.length === 0 || index === 0 ? 'No older commit' : ''}>
+        <Tooltip label={commits.length === 0 || index === 0 ? 'No older commit' : 'Older commit'}>
           <NavButton
             disabled={commits.length === 0 || index === 0}
             onClick={() => onView(commits[index < 0 ? commits.length - 1 : index - 1].sha)}
@@ -48,7 +48,7 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
           options={commitOptions}
           className="max-w-104 rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
         />
-        <Tooltip label={index < 0 || index === commits.length - 1 ? 'No newer commit' : ''}>
+        <Tooltip label={index < 0 || index === commits.length - 1 ? 'No newer commit' : 'Newer commit'}>
           <NavButton disabled={index < 0 || index === commits.length - 1} onClick={() => onView(commits[index + 1].sha)}>
             <ChevronRightIcon className="size-3.5" />
           </NavButton>

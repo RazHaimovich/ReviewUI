@@ -227,20 +227,19 @@ export default function App() {
               ['unified', Rows3Icon, 'Unified view'],
               ['split', Columns2Icon, 'Split view'],
             ].map(([type, Icon, label]) => (
-              <button
-                key={type}
-                title={label}
-                onClick={() => setViewType(type)}
-                className={clsx('grid size-7 place-items-center rounded', viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink')}
-              >
-                <Icon className="size-4" />
-              </button>
+              <Tooltip key={type} label={label}>
+                <button
+                  onClick={() => setViewType(type)}
+                  className={clsx('grid size-7 place-items-center rounded', viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink')}
+                >
+                  <Icon className="size-4" />
+                </button>
+              </Tooltip>
             ))}
           </div>
 
-          <Tooltip label={files.length === 0 ? 'No files to review' : ''}>
+          <Tooltip label={files.length === 0 ? 'No files to review' : allCollapsed ? 'Expand all files' : 'Collapse all files'}>
             <button
-              title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
               onClick={toggleAll}
               disabled={files.length === 0}
               className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
@@ -249,9 +248,8 @@ export default function App() {
             </button>
           </Tooltip>
 
-          <Tooltip label={comments.length === 0 ? 'No comments yet' : ''}>
+          <Tooltip label={comments.length === 0 ? 'No comments yet' : 'All comments'}>
             <button
-              title="All comments"
               onClick={() => setShowComments(true)}
               disabled={comments.length === 0}
               className={clsx(iconButton, 'relative disabled:pointer-events-none disabled:opacity-40')}
@@ -265,9 +263,8 @@ export default function App() {
             </button>
           </Tooltip>
 
-          <Tooltip label={comments.length === 0 && reviewed.size === 0 ? 'Nothing to reset' : ''}>
+          <Tooltip label={comments.length === 0 && reviewed.size === 0 ? 'Nothing to reset' : 'Reset review'}>
             <button
-              title="Reset review"
               onClick={() => setConfirmReset(true)}
               disabled={comments.length === 0 && reviewed.size === 0}
               className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
@@ -276,13 +273,11 @@ export default function App() {
             </button>
           </Tooltip>
 
-          <button
-            title={dark ? 'Light theme' : 'Dark theme'}
-            onClick={() => setDark(!dark)}
-            className={iconButton}
-          >
-            {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
-          </button>
+          <Tooltip label={dark ? 'Light theme' : 'Dark theme'}>
+            <button onClick={() => setDark(!dark)} className={iconButton}>
+              {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
+            </button>
+          </Tooltip>
 
           <Tooltip label={comments.length === 0 ? 'Add a comment first' : ''}>
             <button

@@ -5,6 +5,7 @@ import { ChevronDownIcon, ChevronRightIcon, MessageSquarePlusIcon, PlusIcon } fr
 import { highlighter, languageFor } from '../lib/highlight.js';
 import { lineRange } from '../lib/lineRange.js';
 import { CommentCard, CommentForm } from './Comment.jsx';
+import Tooltip from './Tooltip.jsx';
 
 export function filePath(file) {
   return file.type === 'delete' ? file.oldPath : file.newPath;
@@ -141,13 +142,14 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
   return (
     <section id={path} className="mb-4 scroll-mt-28 overflow-hidden rounded-lg border border-line bg-panel">
       <header className="flex items-center gap-2 border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
-        <button
-          onClick={onToggleCollapse}
-          title={collapsed ? 'Expand file' : 'Collapse file'}
-          className="grid size-5 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
-        >
-          {collapsed ? <ChevronRightIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
-        </button>
+        <Tooltip label={collapsed ? 'Expand file' : 'Collapse file'}>
+          <button
+            onClick={onToggleCollapse}
+            className="grid size-5 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
+          >
+            {collapsed ? <ChevronRightIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
+          </button>
+        </Tooltip>
         <span className="truncate text-ink">
           {file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : path}
         </span>
@@ -161,13 +163,14 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
           {adds > 0 && <span className="text-add">+{adds}</span>}
           {dels > 0 && <span className="text-del">−{dels}</span>}
         </span>
-        <button
-          onClick={() => setFileDraft(true)}
-          title="Comment on file"
-          className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
-        >
-          <MessageSquarePlusIcon className="size-4" />
-        </button>
+        <Tooltip label="Comment on file">
+          <button
+            onClick={() => setFileDraft(true)}
+            className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
+          >
+            <MessageSquarePlusIcon className="size-4" />
+          </button>
+        </Tooltip>
         <label
           className={clsx(
             'flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 font-sans text-[11px]',

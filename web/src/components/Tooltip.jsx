@@ -14,8 +14,8 @@ import {
 } from '@floating-ui/react';
 
 // Wraps children with a hover/focus tooltip. Pass an empty `label` to render
-// children untouched (no wrapper) — used to show a reason only while disabled.
-// Because disabled buttons don't emit pointer events, wrapped controls should
+// children untouched (no wrapper). Works for enabled and disabled controls;
+// because disabled buttons don't emit pointer events, wrapped controls should
 // carry `disabled:pointer-events-none` so the hover reaches this wrapper.
 export default function Tooltip({ label, children, placement = 'bottom' }) {
   const [open, setOpen] = useState(false);
@@ -36,7 +36,7 @@ export default function Tooltip({ label, children, placement = 'bottom' }) {
 
   return (
     <>
-      <span ref={refs.setReference} {...getReferenceProps()} className="inline-flex cursor-not-allowed">
+      <span ref={refs.setReference} {...getReferenceProps()} className="inline-flex">
         {children}
       </span>
       {open && (
