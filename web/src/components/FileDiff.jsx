@@ -42,6 +42,10 @@ export default function FileDiff({
   const path = filePath(file)
   const { adds, dels } = fileStats(file)
 
+  // Very large diffs are hidden behind a button so they don't bog down the page.
+  const totalChanges = file.hunks.reduce((n, h) => n + h.changes.length, 0)
+  const [shown, setShown] = useState(totalChanges <= 600)
+
   const fileComments = comments.filter(c => c.scope === 'file')
   const lineComments = comments.filter(c => c.scope !== 'file')
 
@@ -175,8 +179,8 @@ export default function FileDiff({
           : null
 
   return (
-    <section id={path} className="mb-4 scroll-mt-28 overflow-hidden rounded-lg border border-line bg-panel">
-      <header className="flex items-center gap-2 border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
+    <section id={path} className="mb-4 scroll-mt-28 rounded-lg border border-line bg-panel">
+      <header className="sticky top-[6.1rem] z-[5] flex items-center gap-2 rounded-t-lg border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
         <Tooltip label={collapsed ? 'Expand file' : 'Collapse file'}>
           <button
             onClick={onToggleCollapse}
@@ -214,35 +218,48 @@ export default function FileDiff({
           Viewed
         </label>
       </header>
-      {(fileComments.length > 0 || fileDraft) && (
-        <div className="divide-y divide-line border-b border-line bg-panel2">
-          {fileComments.map(c => (
-            <CommentCard key={c.id} comment={c} onUpdate={onUpdate} onDelete={onDelete} />
+      <div className="overflow-hidden rounded-b-lg">
+        {(fileComments.length > 0 || fileDraft) && (
+          <div className="divide-y divide-line border-b border-line bg-panel2">
+            {fileComments.map(c => (
+              <CommentCard key={c.id} comment={c} onUpdate={onUpdate} onDelete={onDelete} />
+            ))}
+            {fileDraft && (
+              <CommentForm
+                placeholder="Comment on the whole file…"
+                onCancel={() => setFileDraft(false)}
+                onSave={saveFileComment}
+              />
+            )}
+          </div>
+        )}
+        {!collapsed &&
+          (shown ? (
+            <Diff
+              viewType={viewType}
+              diffType={file.type}
+              hunks={file.hunks}
+              widgets={widgets}
+              gutterEvents={gutterEvents}
+              renderGutter={renderGutter}
+              selectedChanges={selectedChanges}
+              generateLineClassName={generateLineClassName}
+              tokens={tokens}
+            >
+              {hunks => hunks.map(hunk => <Hunk key={hunk.content} hunk={hunk} />)}
+            </Diff>
+          ) : (
+            <button
+              onClick={() => setShown(true)}
+              className="flex w-full flex-col items-center gap-1 py-10 text-sm text-muted hover:bg-panel2"
+            >
+              <span>
+                This file is large — {totalChanges.toLocaleString()} lines, {adds} added / {dels} removed.
+              </span>
+              <span className="font-medium text-accent">Click to view</span>
+            </button>
           ))}
-          {fileDraft && (
-            <CommentForm
-              placeholder="Comment on the whole file…"
-              onCancel={() => setFileDraft(false)}
-              onSave={saveFileComment}
-            />
-          )}
-        </div>
-      )}
-      {!collapsed && (
-        <Diff
-          viewType={viewType}
-          diffType={file.type}
-          hunks={file.hunks}
-          widgets={widgets}
-          gutterEvents={gutterEvents}
-          renderGutter={renderGutter}
-          selectedChanges={selectedChanges}
-          generateLineClassName={generateLineClassName}
-          tokens={tokens}
-        >
-          {hunks => hunks.map(hunk => <Hunk key={hunk.content} hunk={hunk} />)}
-        </Diff>
-      )}
+      </div>
     </section>
   )
 }
