@@ -28,19 +28,21 @@ on every PR. The port auto-increments from 41096 if busy.
 
 For development: run `node server/index.js` and `npm run dev:web` in two
 terminals. Set `REVIEWUI_NO_OPEN=1` to skip auto-opening the browser.
-The server serves the built `web/dist`, not live source — rebuild after UI edits.
+The server serves the built `web/dist`, not live source - rebuild after UI edits.
+The Vite dev proxy targets `REVIEWUI_PORT` (default 41096); if 41096 is busy,
+set the same `REVIEWUI_PORT` for both commands so the proxy matches the backend.
 
 ## Architecture
 
-- **`server/`** — Node/Express. `index.js` is the CLI entry (validates git repo,
+- **`server/`** - Node/Express. `index.js` is the CLI entry (validates git repo,
   binds 41096, opens browser). `app.js` defines the JSON API. `git.js` runs all
   git via `execFile` in the invocation directory. `prompt.js` assembles the
   Claude Code prompt. Comments live in memory for one session.
-- **`web/`** — React + Vite + Tailwind v4 app, built to `web/dist`. Source under
+- **`web/`** - React + Vite + Tailwind v4 app, built to `web/dist`. Source under
   `web/src`: `main.jsx` + `index.css` at the root, React components in
   `components/`, and non-UI helpers (`api`, `lineRange`, `highlight`) in `lib/`.
   Diffs render via `react-diff-view`; syntax highlighting via `refractor`.
-- **`test/`** — `node:test` against a throwaway fixture git repo (`fixture.js`)
+- **`test/`** - `node:test` against a throwaway fixture git repo (`fixture.js`)
   plus pure-helper unit tests.
 
 ## Conventions
@@ -49,7 +51,7 @@ The server serves the built `web/dist`, not live source — rebuild after UI edi
   `web/src/index.css` (`--c-*` flip on `.dark`, exposed as `bg-panel`,
   `text-ink`, `text-accent`, etc. via `@theme inline`). Style through the
   tokens; avoid raw `dark:` variants. `@custom-variant`/`@theme` are valid
-  Tailwind at-rules — the editor lint for them is disabled in `.vscode/`.
+  Tailwind at-rules - the editor lint for them is disabled in `.vscode/`.
 - **Icons**: import lucide icons by their `…Icon`-suffixed alias
   (`ChevronDownIcon`, not `ChevronDown`).
 - **Comments UX**: gutter-only. Hovering a line number shows a "+"; clicking the
@@ -57,10 +59,12 @@ The server serves the built `web/dist`, not live source — rebuild after UI edi
   range. Clicking code text never starts a comment.
 - **Commits**: Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`,
   `docs:`).
+- **Punctuation**: never use an em dash (`—`) in code, comments, UI copy, or
+  docs. Use a plain hyphen (`-`) instead.
 
 ## Security constraints (do not regress)
 
-Established in the 0.1.0 review — keep these intact:
+Established in the 0.1.0 review - keep these intact:
 
 - Git refs from the client are rejected if empty or flag-like (`-…`) to prevent
   argument injection into `git` (`assertRef` in `git.js`).

@@ -31,7 +31,7 @@ export function buildPrompt({ repoName, base, head, comments, summary }) {
   if (summary?.trim()) lines.push('## Overall', '', summary.trim(), '')
 
   lines.push(
-    'Please address all comments above. Line numbers may have shifted for comments made on intermediate commits — locate the referenced snippet by its content if needed.'
+    'Please address all comments above. Line numbers may have shifted for comments made on intermediate commits - locate the referenced snippet by its content if needed.'
   )
   return lines.join('\n')
 }

@@ -1,4 +1,4 @@
-// In-memory comment store for a single review session (by design — see PRD).
+// In-memory comment store for a single review session (by design - see PRD).
 // Shared by the comments and prompt routes.
 export function createCommentsStore() {
   const comments = []

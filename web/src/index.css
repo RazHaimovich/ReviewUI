@@ -90,7 +90,7 @@ body {
   color: var(--c-selection-ink);
 }
 
-/* Tailwind v4's reset drops the button pointer cursor — restore it. */
+/* Tailwind v4's reset drops the button pointer cursor - restore it. */
 button:not(:disabled),
 label:has(> input[type='checkbox']),
 summary {
@@ -248,7 +248,7 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Keep spinners animating — they convey loading state — but calm everything else. */
+  /* Keep spinners animating - they convey loading state - but calm everything else. */
   *:not(.animate-spin) {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
