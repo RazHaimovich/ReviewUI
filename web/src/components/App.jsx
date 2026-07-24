@@ -76,7 +76,7 @@ function useTheme() {
   return [dark, setTheme];
 }
 
-const FONT_SIZES = { small: '14px', medium: '16px', large: '18px' };
+const FONT_SIZES = { small: '15px', medium: '17px', large: '19px' };
 const FONT_ORDER = ['small', 'medium', 'large'];
 
 function useFontSize() {
