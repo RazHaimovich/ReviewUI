@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+@import 'react-diff-view/style/index.css';
+
+.diff {
+  font-size: 12px;
+  line-height: 1.6;
+}
