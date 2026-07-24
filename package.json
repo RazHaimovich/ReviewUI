@@ -1,6 +1,6 @@
 {
   "name": "reviewui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Review any git branch like a GitHub PR, locally, and hand the comments to Claude Code as a prompt.",
   "type": "module",
   "bin": {
