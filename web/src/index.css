@@ -104,12 +104,29 @@ body {
   background: var(--c-panel);
 }
 .diff-gutter {
+  position: relative;
   color: var(--c-faint);
+  user-select: none;
 }
 .diff-gutter:hover {
   cursor: pointer;
+  background: var(--c-accent-soft);
+}
+/* GitHub-style "+" badge revealed over the line number on hover */
+.gutter-plus {
+  display: none;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
   background: var(--c-accent);
   color: var(--c-on-accent);
+  border-radius: 3px;
+}
+.diff-gutter:hover .gutter-plus {
+  display: flex;
 }
 .diff-code-insert {
   background: color-mix(in srgb, var(--c-add) 12%, transparent);
