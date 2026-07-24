@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import clsx from 'clsx';
-import { CheckIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import { PencilIcon, Trash2Icon } from 'lucide-react';
 import ConfirmModal from './ConfirmModal.jsx';
 
 export function CommentForm({ initial = '', onSave, onCancel, placeholder = 'Leave a comment…  (drag across line numbers to select a range)' }) {
@@ -55,11 +55,11 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
   }
 
   const excluded = comment.included === false;
-  const iconBtn = 'grid size-6 place-items-center rounded text-faint hover:bg-panel2 hover:text-ink';
+  const iconBtn = 'grid size-6 place-items-center rounded text-muted hover:bg-panel2 hover:text-ink';
 
   return (
-    <div className={clsx('bg-accent-soft/50 px-3 py-2.5 font-sans text-sm', excluded && 'opacity-45')}>
-      <div className="mb-1 flex items-center gap-2">
+    <div className="bg-panel2 px-3 py-2.5 font-sans text-sm">
+      <div className="mb-1.5 flex items-center gap-2">
         <span className="font-mono text-[11px] tracking-wide text-accent tnum">{range}</span>
         {comment.commitSha && (
           <span className="rounded bg-panel2 px-1.5 font-mono text-[11px] text-muted">
@@ -67,13 +67,21 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
           </span>
         )}
         <span className="grow" />
-        <button
-          title={excluded ? 'Include in prompt' : 'Exclude from prompt'}
-          onClick={() => onUpdate(comment.id, { included: excluded })}
-          className={clsx('grid size-6 place-items-center rounded hover:bg-panel2', excluded ? 'text-faint' : 'text-accent')}
+        <label
+          title="Whether this comment is sent in the generated prompt"
+          className={clsx(
+            'flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px]',
+            excluded ? 'border-line text-muted' : 'border-accent bg-accent-soft text-accent'
+          )}
         >
-          <CheckIcon className="size-3.5" strokeWidth={excluded ? 2 : 3} />
-        </button>
+          <input
+            type="checkbox"
+            checked={!excluded}
+            onChange={() => onUpdate(comment.id, { included: excluded })}
+            className="accent-accent"
+          />
+          In prompt
+        </label>
         <button title="Edit" onClick={() => setEditing(true)} className={iconBtn}>
           <PencilIcon className="size-3.5" />
         </button>
@@ -81,8 +89,7 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
           <Trash2Icon className="size-3.5" />
         </button>
       </div>
-      <p className="whitespace-pre-wrap text-ink">{comment.body}</p>
-      {excluded && <p className="mt-1 font-mono text-[11px] text-faint">Excluded from prompt</p>}
+      <p className={clsx('whitespace-pre-wrap', excluded ? 'text-muted line-through' : 'text-ink')}>{comment.body}</p>
       {confirmDelete && (
         <ConfirmModal
           title="Delete comment?"

@@ -1,7 +1,29 @@
-import { XIcon } from 'lucide-react';
+import clsx from 'clsx';
+import { FileIcon, XIcon } from 'lucide-react';
 import { CommentCard } from './Comment.jsx';
 
+function Snippet({ text }) {
+  return (
+    <pre className="max-h-40 overflow-auto border-b border-line bg-bg px-3 py-2 font-mono text-[11px] leading-relaxed">
+      {text.split('\n').map((line, i) => (
+        <div
+          key={i}
+          className={clsx(
+            line.startsWith('+') && 'text-add',
+            line.startsWith('-') && 'text-del',
+            !line.startsWith('+') && !line.startsWith('-') && 'text-muted'
+          )}
+        >
+          {line || ' '}
+        </div>
+      ))}
+    </pre>
+  );
+}
+
 export default function CommentsModal({ comments, onUpdate, onDelete, onClose }) {
+  const included = comments.filter((c) => c.included !== false).length;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm"
@@ -13,7 +35,10 @@ export default function CommentsModal({ comments, onUpdate, onDelete, onClose })
       >
         <header className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-sm font-semibold">
-            Comments <span className="text-muted tnum">({comments.length})</span>
+            Comments
+            <span className="ml-2 font-normal text-muted tnum">
+              {comments.length} total · {included} in prompt
+            </span>
           </h2>
           <button
             onClick={onClose}
@@ -23,13 +48,18 @@ export default function CommentsModal({ comments, onUpdate, onDelete, onClose })
             <XIcon className="size-4" />
           </button>
         </header>
-        <div className="overflow-y-auto">
+
+        <div className="space-y-2.5 overflow-y-auto bg-bg p-4">
           {comments.length === 0 && (
-            <p className="p-6 text-center text-sm text-muted">No comments yet.</p>
+            <p className="py-8 text-center text-sm text-muted">No comments yet.</p>
           )}
           {comments.map((c) => (
-            <div key={c.id} className="border-b border-line last:border-b-0">
-              <div className="px-3 pt-2 font-mono text-[11px] text-muted">{c.filePath}</div>
+            <div key={c.id} className="overflow-hidden rounded-lg border border-line">
+              <div className="flex items-center gap-1.5 border-b border-line bg-panel2 px-3 py-1.5 font-mono text-[11px] text-muted">
+                <FileIcon className="size-3 shrink-0" />
+                <span className="truncate">{c.filePath}</span>
+              </div>
+              {c.snippet && <Snippet text={c.snippet} />}
               <CommentCard comment={c} onUpdate={onUpdate} onDelete={onDelete} />
             </div>
           ))}
