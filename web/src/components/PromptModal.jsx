@@ -1,14 +1,21 @@
-import { useState } from 'react';
-import { CheckIcon, CopyIcon, TerminalIcon, XIcon } from 'lucide-react';
+import { useState } from 'react'
+import { CheckIcon, CopyIcon, TerminalIcon, XIcon } from 'lucide-react'
 
 export default function PromptModal({ text, summary, onSummaryChange, onRegenerate, onClose }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
 
   const copy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+    // Regenerate first so an unsaved summary edit is included, then copy the
+    // fresh text rather than the possibly-stale `text` prop.
+    const fresh = await onRegenerate()
+    try {
+      await navigator.clipboard.writeText(fresh ?? text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard blocked (e.g. no permission) - leave the button unchanged
+    }
+  }
 
   return (
     <div
@@ -17,7 +24,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
     >
       <div
         className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-line px-4 py-3">
           <div className="flex items-center gap-2">
@@ -47,20 +54,20 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
           <textarea
             rows={2}
             value={summary}
-            onChange={(e) => onSummaryChange(e.target.value)}
+            onChange={e => onSummaryChange(e.target.value)}
             onBlur={onRegenerate}
-            placeholder="Overall summary (optional) — applies to the whole review, e.g. “also add tests”"
+            placeholder="Overall summary (optional) - applies to the whole review, e.g. “also add tests”"
             className="w-full resize-y rounded-md border border-line-strong bg-bg p-2 text-sm text-ink placeholder:text-faint"
           />
         </div>
         <pre className="overflow-auto whitespace-pre-wrap bg-bg p-4 font-mono text-xs leading-relaxed text-ink">
           {text}
         </pre>
-        <footer className="flex items-center gap-1.5 border-t border-line px-4 py-2 font-mono text-[11px] text-faint">
+        <footer className="flex items-center gap-1.5 border-t border-line px-4 py-2 font-mono text-[0.6875rem] text-faint">
           <TerminalIcon className="size-3" />
           Also printed to the terminal running ReviewUI.
         </footer>
       </div>
     </div>
-  );
+  )
 }

@@ -19,6 +19,9 @@
   --c-on-accent: #ffffff;
   --c-add: #1a7f37;
   --c-del: #cf2231;
+  --c-selection: #b9b2f5;
+  --c-selection-ink: #14122e;
+  --c-mark: #fdf0b5;
   --c-shadow: 0 1px 2px rgba(20, 20, 40, 0.06), 0 1px 1px rgba(20, 20, 40, 0.04);
 }
 .dark {
@@ -36,6 +39,9 @@
   --c-on-accent: #0a0a10;
   --c-add: #3fb950;
   --c-del: #f85149;
+  --c-selection: #4a3fb0;
+  --c-selection-ink: #f2f0ff;
+  --c-mark: rgba(234, 179, 8, 0.22);
   --c-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
@@ -54,6 +60,7 @@
   --color-on-accent: var(--c-on-accent);
   --color-add: var(--c-add);
   --color-del: var(--c-del);
+  --color-mark: var(--c-mark);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, monospace;
 }
@@ -79,10 +86,11 @@ body {
 }
 
 ::selection {
-  background: var(--c-accent-soft);
+  background: var(--c-selection);
+  color: var(--c-selection-ink);
 }
 
-/* Tailwind v4's reset drops the button pointer cursor — restore it. */
+/* Tailwind v4's reset drops the button pointer cursor - restore it. */
 button:not(:disabled),
 label:has(> input[type='checkbox']),
 summary {
@@ -98,7 +106,7 @@ button:disabled {
 
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--c-muted);
@@ -114,7 +122,7 @@ button:disabled {
 /* ---- diff surface ---- */
 .diff {
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 0.78rem;
   line-height: 1.6;
   font-variant-numeric: tabular-nums;
   color: var(--c-ink);
@@ -165,6 +173,12 @@ button:disabled {
 .diff-gutter-selected {
   background: color-mix(in srgb, var(--c-accent) 40%, transparent);
 }
+/* lines that carry a comment get a yellow highlight (beats add/delete tints) */
+.line-has-comment .diff-code,
+.line-has-comment .diff-gutter {
+  background: var(--c-mark);
+}
+
 .diff-hunk-header,
 .diff-decoration {
   background: var(--c-panel2);
@@ -234,7 +248,8 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  /* Keep spinners animating - they convey loading state - but calm everything else. */
+  *:not(.animate-spin) {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }

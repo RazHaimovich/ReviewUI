@@ -54,7 +54,7 @@ jobs:
           PUBLISHED=$(npm view "$NAME@$VERSION" version 2>/dev/null || true)
 
           if [ -n "$PUBLISHED" ]; then
-            echo "$NAME@$VERSION is already published — skipping publish."
+            echo "$NAME@$VERSION is already published - skipping publish."
           else
             echo "Publishing $NAME@$VERSION..."
             npm publish --access public
@@ -67,7 +67,7 @@ jobs:
           VERSION: ${{ steps.publish.outputs.version }}
         run: |
           if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" > /dev/null 2>&1; then
-            echo "Tag $VERSION already exists — skipping."
+            echo "Tag $VERSION already exists - skipping."
           else
             echo "Creating tag $VERSION..."
             git tag "$VERSION"

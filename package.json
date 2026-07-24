@@ -1,6 +1,6 @@
 {
   "name": "reviewui",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "description": "Review any git branch like a GitHub PR, locally, and hand the comments to Claude Code as a prompt.",
   "type": "module",
   "bin": {
@@ -35,19 +35,30 @@
     "test": "node --test",
     "build": "vite build",
     "dev:web": "vite",
-    "prepublishOnly": "npm run build"
+    "prepare": "npm run build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "spell": "cspell --no-progress \"**/*.{js,jsx,md,json,css,html}\""
   },
   "dependencies": {
     "express": "^4.21.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@floating-ui/react": "^0.27.20",
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.0.4",
     "clsx": "^2.1.1",
+    "cspell": "^10.0.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "lucide-react": "^1.26.0",
+    "prettier": "^3.9.6",
     "react": "^19.2.8",
     "react-diff-view": "^3.3.3",
     "react-dom": "^19.2.8",

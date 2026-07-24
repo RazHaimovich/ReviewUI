@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import clsx from 'clsx';
+import { useRef, useState } from 'react'
+import clsx from 'clsx'
 import {
   autoUpdate,
   flip,
@@ -13,20 +13,20 @@ import {
   useRole,
   useTypeahead,
   FloatingFocusManager,
-  FloatingPortal,
-} from '@floating-ui/react';
-import { CheckIcon, ChevronDownIcon } from 'lucide-react';
+  FloatingPortal
+} from '@floating-ui/react'
+import { CheckIcon, ChevronDownIcon } from 'lucide-react'
 
 // Accessible, styled replacement for a native <select>.
 // options: [{ value, label }]. label is a string (used for display + typeahead).
 export default function Select({ value, onChange, options, className = '', ariaLabel }) {
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(null);
-  const selectedIndex = options.findIndex((o) => o.value === value);
+  const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(null)
+  const selectedIndex = options.findIndex(o => o.value === value)
 
-  const listRef = useRef([]);
-  const labelsRef = useRef(options.map((o) => o.label));
-  labelsRef.current = options.map((o) => o.label);
+  const listRef = useRef([])
+  const labelsRef = useRef(options.map(o => o.label))
+  labelsRef.current = options.map(o => o.label)
 
   const { refs, floatingStyles, context } = useFloating({
     open,
@@ -41,36 +41,42 @@ export default function Select({ value, onChange, options, className = '', ariaL
         apply({ rects, availableHeight, elements }) {
           Object.assign(elements.floating.style, {
             minWidth: `${rects.reference.width}px`,
-            maxHeight: `${Math.min(availableHeight, 340)}px`,
-          });
-        },
-      }),
-    ],
-  });
+            maxHeight: `${Math.min(availableHeight, 340)}px`
+          })
+        }
+      })
+    ]
+  })
 
-  const click = useClick(context);
-  const dismiss = useDismiss(context);
-  const role = useRole(context, { role: 'listbox' });
+  const click = useClick(context)
+  const dismiss = useDismiss(context)
+  const role = useRole(context, { role: 'listbox' })
   const listNav = useListNavigation(context, {
     listRef,
     activeIndex,
     selectedIndex: selectedIndex < 0 ? null : selectedIndex,
     onNavigate: setActiveIndex,
-    loop: true,
-  });
+    loop: true
+  })
   const typeahead = useTypeahead(context, {
     listRef: labelsRef,
     activeIndex,
     selectedIndex: selectedIndex < 0 ? null : selectedIndex,
-    onMatch: open ? setActiveIndex : undefined,
-  });
-  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions([click, dismiss, role, listNav, typeahead]);
+    onMatch: open ? setActiveIndex : undefined
+  })
+  const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions([
+    click,
+    dismiss,
+    role,
+    listNav,
+    typeahead
+  ])
 
-  const selected = options[selectedIndex];
+  const selected = options[selectedIndex]
 
   function select(index) {
-    onChange(options[index].value);
-    setOpen(false);
+    onChange(options[index].value)
+    setOpen(false)
   }
 
   return (
@@ -97,8 +103,8 @@ export default function Select({ value, onChange, options, className = '', ariaL
               {options.map((opt, i) => (
                 <div
                   key={opt.value}
-                  ref={(node) => {
-                    listRef.current[i] = node;
+                  ref={node => {
+                    listRef.current[i] = node
                   }}
                   role="option"
                   aria-selected={i === selectedIndex}
@@ -109,12 +115,12 @@ export default function Select({ value, onChange, options, className = '', ariaL
                   )}
                   {...getItemProps({
                     onClick: () => select(i),
-                    onKeyDown: (event) => {
+                    onKeyDown: event => {
                       if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        select(i);
+                        event.preventDefault()
+                        select(i)
                       }
-                    },
+                    }
                   })}
                 >
                   <CheckIcon
@@ -128,5 +134,5 @@ export default function Select({ value, onChange, options, className = '', ariaL
         </FloatingPortal>
       )}
     </>
-  );
+  )
 }

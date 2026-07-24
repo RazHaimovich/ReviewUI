@@ -15,7 +15,7 @@ npx reviewui
 
 Opens a review UI at http://localhost:41096 comparing your current branch
 against `main`/`master`. Browse the diff (final result or commit by commit),
-leave comments on lines or ranges, then click **Generate Prompt** — the
+leave comments on lines or ranges, then click **Generate Prompt** - the
 assembled feedback is copied to your clipboard and printed to the terminal,
 ready to paste into Claude Code.
 
