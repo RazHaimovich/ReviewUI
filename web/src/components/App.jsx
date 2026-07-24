@@ -30,7 +30,7 @@ import {
 import CommitBar from './CommitBar.jsx'
 import CommentsModal from './CommentsModal.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
-import FileDiff, { filePath, fileStats } from './FileDiff.jsx'
+import FileDiff, { filePath } from './FileDiff.jsx'
 import FileTree from './FileTree.jsx'
 import PromptModal from './PromptModal.jsx'
 import Select from './Select.jsx'
@@ -134,8 +134,8 @@ export default function App() {
   const [view, setView] = useState('final') // 'final' or a commit sha
   const [mode, setMode] = useState('single')
   const [viewType, setViewType] = useState('unified')
-  const [files, setFiles] = useState([])
-  const [oversized, setOversized] = useState([])
+  const [fileList, setFileList] = useState([]) // ordered [{ path, adds, dels, oversized }]
+  const [parsed, setParsed] = useState(() => new Map()) // path -> parsed diff file (loaded)
   const [comments, setComments] = useState([])
   const [collapsed, setCollapsed] = useState(() => new Set())
   const [reviewed, setReviewed] = useState(() => new Set())
@@ -177,24 +177,30 @@ export default function App() {
 
   useEffect(() => {
     if (!base || !head) return
+    let stale = false
     setLoadingDiff(true)
     getDiff(diffParams())
-      .then(({ diff, oversized: long }) => {
-        setFiles(diff.trim() ? parseDiff(diff) : [])
-        setOversized(long ?? [])
+      .then(({ diff, files: list }) => {
+        if (stale) return
+        const map = new Map()
+        if (diff.trim()) for (const f of parseDiff(diff)) map.set(filePath(f), f)
+        setParsed(map)
+        setFileList(list ?? [])
         setError(null)
       })
-      .catch(err => setError(err.message))
-      .finally(() => setLoadingDiff(false))
+      .catch(err => !stale && setError(err.message))
+      .finally(() => !stale && setLoadingDiff(false))
+    return () => {
+      stale = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, head, view, mode])
 
   const loadLongFile = async path => {
     try {
       const text = await getFileDiff({ ...diffParams(), file: path })
-      const parsed = parseDiff(text)
-      setFiles(prev => [...prev, ...parsed])
-      setOversized(prev => prev.filter(f => f.path !== path))
+      const [f] = parseDiff(text)
+      if (f) setParsed(prev => new Map(prev).set(filePath(f), f))
     } catch (err) {
       setError(err.message)
     }
@@ -273,17 +279,31 @@ export default function App() {
     )
   }
 
-  const treeEntries = files.map(file => ({
-    path: filePath(file),
-    type: file.type,
-    ...fileStats(file),
-    comments: comments.filter(c => c.filePath === filePath(file)).length,
-    reviewed: reviewed.has(filePath(file))
+  // One entry per changed file in git order; merge the loaded diff (if any).
+  const entries = fileList.map(s => {
+    const f = parsed.get(s.path)
+    return {
+      path: s.path,
+      adds: s.adds,
+      dels: s.dels,
+      oversized: s.oversized,
+      ...(f && { hunks: f.hunks, type: f.type, oldPath: f.oldPath, newPath: f.newPath })
+    }
+  })
+
+  const treeEntries = entries.map(e => ({
+    path: e.path,
+    type: e.type ?? 'modify',
+    adds: e.adds,
+    dels: e.dels,
+    comments: comments.filter(c => c.filePath === e.path).length,
+    reviewed: reviewed.has(e.path)
   }))
 
-  const paths = files.map(filePath)
+  const paths = fileList.map(s => s.path)
   const allCollapsed = paths.length > 0 && paths.every(p => collapsed.has(p))
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(paths))
+  const reviewedCount = paths.filter(p => reviewed.has(p)).length
 
   const iconButton = 'grid size-8 place-items-center rounded-md bg-panel2 text-muted hover:bg-line hover:text-ink'
 
@@ -306,8 +326,8 @@ export default function App() {
 
           {!loadingDiff && (
             <span className="text-xs text-muted tnum">
-              {files.length} {files.length === 1 ? 'file' : 'files'}
-              {reviewed.size > 0 && ` · ${reviewed.size}/${files.length} viewed`}
+              {fileList.length} {fileList.length === 1 ? 'file' : 'files'}
+              {reviewedCount > 0 && ` · ${reviewedCount}/${fileList.length} viewed`}
             </span>
           )}
 
@@ -353,12 +373,12 @@ export default function App() {
           <div className="flex items-center gap-1">
             <Tooltip
               label={
-                files.length === 0 ? 'No files to review' : allCollapsed ? 'Expand all files' : 'Collapse all files'
+                fileList.length === 0 ? 'No files to review' : allCollapsed ? 'Expand all files' : 'Collapse all files'
               }
             >
               <button
                 onClick={toggleAll}
-                disabled={files.length === 0}
+                disabled={fileList.length === 0}
                 className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
               >
                 {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
@@ -426,48 +446,28 @@ export default function App() {
         <div className="min-w-0 flex-1">
           {loadingDiff ? (
             <DiffSkeleton />
-          ) : files.length === 0 ? (
+          ) : entries.length === 0 ? (
             <div className="grid place-items-center rounded-lg border border-dashed border-line py-24 text-center">
               <p className="text-sm text-muted">No changes between these branches.</p>
               <p className="mt-1 font-mono text-xs text-faint">Pick a different base or compare branch.</p>
             </div>
           ) : (
-            <>
-              {files.map(file => (
-                <FileDiff
-                  key={filePath(file)}
-                  file={file}
-                  viewType={viewType}
-                  comments={comments.filter(c => c.filePath === filePath(file))}
-                  collapsed={collapsed.has(filePath(file))}
-                  onToggleCollapse={() => toggleCollapse(filePath(file))}
-                  reviewed={reviewed.has(filePath(file))}
-                  onToggleReviewed={() => toggleReviewed(filePath(file))}
-                  onCreate={onCreateComment}
-                  onUpdate={onUpdateComment}
-                  onDelete={onDeleteComment}
-                />
-              ))}
-              {oversized.map(f => (
-                <div
-                  key={f.path}
-                  className="mb-4 flex flex-col items-center gap-1 rounded-lg border border-dashed border-line bg-panel py-10 text-center"
-                >
-                  <span className="font-mono text-xs text-ink">{f.path}</span>
-                  <span className="text-sm text-muted">
-                    Long file — {(f.adds + f.dels).toLocaleString()} changed lines (
-                    <span className="text-add">+{f.adds}</span> / <span className="text-del">−{f.dels}</span>), not
-                    loaded.
-                  </span>
-                  <button
-                    onClick={() => loadLongFile(f.path)}
-                    className="mt-1 rounded-md bg-accent px-3 py-1 text-sm font-medium text-on-accent hover:bg-accent-hover"
-                  >
-                    Load diff
-                  </button>
-                </div>
-              ))}
-            </>
+            entries.map(e => (
+              <FileDiff
+                key={e.path}
+                file={e}
+                viewType={viewType}
+                comments={comments.filter(c => c.filePath === e.path)}
+                collapsed={collapsed.has(e.path)}
+                onToggleCollapse={() => toggleCollapse(e.path)}
+                reviewed={reviewed.has(e.path)}
+                onToggleReviewed={() => toggleReviewed(e.path)}
+                onCreate={onCreateComment}
+                onUpdate={onUpdateComment}
+                onDelete={onDeleteComment}
+                onLoad={loadLongFile}
+              />
+            ))
           )}
         </div>
       </main>

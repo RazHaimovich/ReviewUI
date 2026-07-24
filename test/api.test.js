@@ -19,14 +19,15 @@ test('GET /api/repo reports branches, current branch and default base', async ()
   assert.ok(repo.name)
 })
 
-test('GET /api/diff returns the three-dot diff and an oversized list', async () => {
+test('GET /api/diff returns the three-dot diff and an ordered file list', async () => {
   const res = await fetch(`${base}/api/diff?base=main&head=feature`)
   assert.equal(res.status, 200)
-  const { diff, oversized } = await res.json()
+  const { diff, files } = await res.json()
   assert.equal(diff, fixture.git('diff', 'main...feature'))
   assert.match(diff, /hello \$\{name\}/)
   assert.match(diff, /src\/bye\.js/)
-  assert.deepEqual(oversized, []) // fixture files are all small
+  assert.deepEqual(files.map(f => f.path).sort(), ['hello.js', 'src/bye.js'])
+  assert.ok(files.every(f => f.oversized === false)) // fixture files are all small
 })
 
 test('GET /api/diff?file= returns just that file diff', async () => {

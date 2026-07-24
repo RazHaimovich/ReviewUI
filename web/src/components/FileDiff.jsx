@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view'
 import clsx from 'clsx'
-import { ChevronDownIcon, ChevronRightIcon, MessageSquarePlusIcon, PlusIcon } from 'lucide-react'
+import { ChevronDownIcon, ChevronRightIcon, Loader2Icon, MessageSquarePlusIcon, PlusIcon } from 'lucide-react'
 import { highlighter, languageFor } from '../lib/highlight.js'
 import { lineRange } from '../lib/lineRange.js'
 import { CommentCard, CommentForm } from './Comment.jsx'
@@ -33,18 +33,19 @@ export default function FileDiff({
   onToggleReviewed,
   onCreate,
   onUpdate,
-  onDelete
+  onDelete,
+  onLoad
 }) {
   // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
   const [draft, setDraft] = useState(null)
   const [fileDraft, setFileDraft] = useState(false)
+  const [loadingFile, setLoadingFile] = useState(false)
   const draggingRef = useRef(false)
-  const path = filePath(file)
-  const { adds, dels } = fileStats(file)
-
-  // Very large diffs are hidden behind a button so they don't bog down the page.
-  const totalChanges = file.hunks.reduce((n, h) => n + h.changes.length, 0)
-  const [shown, setShown] = useState(totalChanges <= 600)
+  const path = file.path ?? filePath(file)
+  const adds = file.adds ?? 0
+  const dels = file.dels ?? 0
+  // A long file omitted by the server has no hunks until the user loads it.
+  const loaded = Array.isArray(file.hunks)
 
   const fileComments = comments.filter(c => c.scope === 'file')
   const lineComments = comments.filter(c => c.scope !== 'file')
@@ -66,6 +67,7 @@ export default function FileDiff({
   }, [])
 
   const tokens = useMemo(() => {
+    if (!loaded || collapsed) return undefined
     const language = languageFor(path)
     if (!language) return undefined
     try {
@@ -73,7 +75,7 @@ export default function FileDiff({
     } catch {
       return undefined
     }
-  }, [file, path])
+  }, [file, path, loaded, collapsed])
 
   const byKey = {}
   for (const c of lineComments) (byKey[c.changeKey] ??= []).push(c)
@@ -234,7 +236,7 @@ export default function FileDiff({
           </div>
         )}
         {!collapsed &&
-          (shown ? (
+          (loaded ? (
             <Diff
               viewType={viewType}
               diffType={file.type}
@@ -250,13 +252,28 @@ export default function FileDiff({
             </Diff>
           ) : (
             <button
-              onClick={() => setShown(true)}
-              className="flex w-full flex-col items-center gap-1 py-10 text-sm text-muted hover:bg-panel2"
+              onClick={async () => {
+                setLoadingFile(true)
+                try {
+                  await onLoad(path)
+                } finally {
+                  setLoadingFile(false)
+                }
+              }}
+              disabled={loadingFile}
+              className="flex w-full flex-col items-center gap-1 py-10 text-sm text-muted hover:bg-panel2 disabled:hover:bg-transparent"
             >
               <span>
-                This file is large — {totalChanges.toLocaleString()} lines, {adds} added / {dels} removed.
+                This file is large — {(adds + dels).toLocaleString()} lines, {adds} added / {dels} removed.
               </span>
-              <span className="font-medium text-accent">Click to view</span>
+              {loadingFile ? (
+                <span className="flex items-center gap-1.5 font-medium text-accent">
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Loading…
+                </span>
+              ) : (
+                <span className="font-medium text-accent">Click to view</span>
+              )}
             </button>
           ))}
       </div>

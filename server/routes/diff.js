@@ -22,11 +22,19 @@ export function diffRoutes(repoDir) {
       if (req.query.file) {
         return res.type('text/plain').send(await g.diff(repoDir, req.query))
       }
-      // Default: omit long files, list them so the client can fetch on demand.
+      // Default: the ordered file list (with an `oversized` flag) plus the diff
+      // text for all but the long files, which the client fetches on demand.
       const stat = await g.diffStat(repoDir, req.query)
-      const oversized = stat.filter(f => !f.binary && f.adds + f.dels > LONG_FILE_LINES)
-      const diff = await g.diff(repoDir, { ...req.query, exclude: oversized.map(f => f.path) })
-      res.json({ diff, oversized })
+      const files = stat.map(f => ({
+        path: f.path,
+        adds: f.adds,
+        dels: f.dels,
+        binary: f.binary,
+        oversized: !f.binary && f.adds + f.dels > LONG_FILE_LINES
+      }))
+      const exclude = files.filter(f => f.oversized).map(f => f.path)
+      const diff = await g.diff(repoDir, { ...req.query, exclude })
+      res.json({ diff, files })
     } catch (err) {
       next(err)
     }
