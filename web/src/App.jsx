@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import { parseDiff } from 'react-diff-view';
-import { getRepo, getCommits, getDiff, getComments, createComment, deleteComment, generatePrompt } from './api.js';
+import {
+  getRepo,
+  getCommits,
+  getDiff,
+  getComments,
+  createComment,
+  updateComment,
+  deleteComment,
+  generatePrompt,
+} from './api.js';
 import CommitBar from './CommitBar.jsx';
 import FileDiff, { filePath } from './FileDiff.jsx';
 import PromptModal from './PromptModal.jsx';
@@ -34,6 +43,7 @@ export default function App() {
   const [files, setFiles] = useState([]);
   const [comments, setComments] = useState([]);
   const [prompt, setPrompt] = useState(null);
+  const [summary, setSummary] = useState('');
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -74,11 +84,13 @@ export default function App() {
     })
       .then(refreshComments)
       .catch((err) => setError(err.message));
+  const onUpdateComment = (id, patch) =>
+    updateComment(id, patch).then(refreshComments).catch((err) => setError(err.message));
   const onDeleteComment = (id) =>
     deleteComment(id).then(refreshComments).catch((err) => setError(err.message));
 
   const onGenerate = () =>
-    generatePrompt({ base, head }).then(setPrompt).catch((err) => setError(err.message));
+    generatePrompt({ base, head, summary }).then(setPrompt).catch((err) => setError(err.message));
 
   if (!repo) {
     return <p className="p-6 text-gray-500">{error ? `ReviewUI error: ${error}` : 'Loading…'}</p>;
@@ -136,12 +148,21 @@ export default function App() {
               file={file}
               comments={comments.filter((c) => c.filePath === filePath(file))}
               onCreate={onCreateComment}
+              onUpdate={onUpdateComment}
               onDelete={onDeleteComment}
             />
           ))}
         </div>
       </main>
-      {prompt !== null && <PromptModal text={prompt} onClose={() => setPrompt(null)} />}
+      {prompt !== null && (
+        <PromptModal
+          text={prompt}
+          summary={summary}
+          onSummaryChange={setSummary}
+          onRegenerate={onGenerate}
+          onClose={() => setPrompt(null)}
+        />
+      )}
     </div>
   );
 }

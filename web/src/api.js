@@ -20,6 +20,11 @@ export const createComment = (comment) =>
     .then(ok)
     .then((r) => r.json());
 
+export const updateComment = (id, patch) =>
+  fetch(`/api/comments/${id}`, { method: 'PATCH', headers: json, body: JSON.stringify(patch) })
+    .then(ok)
+    .then((r) => r.json());
+
 export const deleteComment = (id) =>
   fetch(`/api/comments/${id}`, { method: 'DELETE' }).then(ok);
 

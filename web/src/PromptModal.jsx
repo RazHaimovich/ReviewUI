@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function PromptModal({ text, onClose }) {
+export default function PromptModal({ text, summary, onSummaryChange, onRegenerate, onClose }) {
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -29,6 +29,16 @@ export default function PromptModal({ text, onClose }) {
             </button>
           </div>
         </header>
+        <div className="border-b border-gray-200 p-3">
+          <textarea
+            rows={2}
+            value={summary}
+            onChange={(e) => onSummaryChange(e.target.value)}
+            onBlur={onRegenerate}
+            placeholder="Overall summary (optional) — applies to the whole review, e.g. “also add tests”"
+            className="w-full rounded border border-gray-300 p-2 text-sm"
+          />
+        </div>
         <pre className="overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed">{text}</pre>
         <footer className="border-t border-gray-300 px-4 py-2 text-xs text-gray-500">
           Also printed to the terminal running ReviewUI.

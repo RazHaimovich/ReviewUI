@@ -58,6 +58,18 @@ export function createApp(repoDir) {
     res.status(201).json(comment);
   });
 
+  api.patch('/comments/:id', (req, res) => {
+    const comment = comments.find((c) => c.id === Number(req.params.id));
+    if (!comment) return res.status(404).json({ error: 'no such comment' });
+    const { body, included } = req.body ?? {};
+    if (body !== undefined) {
+      if (!body.trim()) return res.status(400).json({ error: 'body cannot be empty' });
+      comment.body = body;
+    }
+    if (included !== undefined) comment.included = Boolean(included);
+    res.json(comment);
+  });
+
   api.delete('/comments/:id', (req, res) => {
     const index = comments.findIndex((c) => c.id === Number(req.params.id));
     if (index === -1) return res.status(404).json({ error: 'no such comment' });

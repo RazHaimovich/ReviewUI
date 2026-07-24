@@ -141,6 +141,64 @@ test('comments round-trip into the generated prompt', async () => {
   assert.equal((await post({ body: 'no file' })).status, 400);
 });
 
+test('edit, exclude and summary shape the prompt', async () => {
+  const post = (payload) =>
+    fetch(`${base}/api/comments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then((r) => r.json());
+  const patch = (id, payload) =>
+    fetch(`${base}/api/comments/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  const prompt = () =>
+    fetch(`${base}/api/prompt`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ base: 'main', head: 'feature', summary: 'Prefer smaller functions.' }),
+    }).then((r) => r.text());
+
+  // start from an empty store regardless of earlier tests
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' });
+  }
+
+  const a = await post({ filePath: 'hello.js', startLine: 1, endLine: 3, snippet: 's', body: 'first' });
+  const b = await post({ filePath: 'src/bye.js', startLine: 1, endLine: 1, snippet: 's', body: 'second' });
+
+  // edit body
+  const edited = await patch(a.id, { body: 'first (edited)' });
+  assert.equal(edited.status, 200);
+
+  // multi-line range renders as start-end; summary section present
+  let text = await prompt();
+  assert.match(text, /## 1\. hello\.js:1-3/);
+  assert.match(text, /first \(edited\)/);
+  assert.match(text, /## Overall\n\nPrefer smaller functions\./);
+
+  // excluded comments disappear and numbering shifts
+  await patch(a.id, { included: false });
+  text = await prompt();
+  assert.doesNotMatch(text, /hello\.js:1-3/);
+  assert.match(text, /## 1\. src\/bye\.js:1/);
+
+  // re-include restores it
+  await patch(a.id, { included: true });
+  text = await prompt();
+  assert.match(text, /## 1\. hello\.js:1-3/);
+
+  // guards
+  assert.equal((await patch(a.id, { body: '  ' })).status, 400);
+  assert.equal((await patch(9999, { body: 'x' })).status, 404);
+
+  // cleanup for other tests
+  await fetch(`${base}/api/comments/${a.id}`, { method: 'DELETE' });
+  await fetch(`${base}/api/comments/${b.id}`, { method: 'DELETE' });
+});
+
 test('GET /api/diff with an unknown branch returns a 500 with an error message', async () => {
   const res = await fetch(`${base}/api/diff?base=nope&head=feature`);
   assert.equal(res.status, 500);
