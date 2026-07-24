@@ -81,6 +81,7 @@ export default function App() {
   const [files, setFiles] = useState([]);
   const [comments, setComments] = useState([]);
   const [collapsed, setCollapsed] = useState(() => new Set());
+  const [reviewed, setReviewed] = useState(() => new Set());
   const [prompt, setPrompt] = useState(null);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(null);
@@ -140,6 +141,19 @@ export default function App() {
       return next;
     });
 
+  // Viewed and collapsed are separate: marking viewed auto-collapses once, but
+  // the file can be re-expanded via its chevron while staying viewed.
+  const toggleReviewed = (path) => {
+    const becomingReviewed = !reviewed.has(path);
+    setReviewed((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+    if (becomingReviewed) setCollapsed((prev) => new Set(prev).add(path));
+  };
+
   if (!repo) {
     return (
       <p className="p-6 font-mono text-sm text-muted">
@@ -153,6 +167,7 @@ export default function App() {
     type: file.type,
     ...fileStats(file),
     comments: comments.filter((c) => c.filePath === filePath(file)).length,
+    reviewed: reviewed.has(filePath(file)),
   }));
 
   const paths = files.map(filePath);
@@ -181,6 +196,7 @@ export default function App() {
 
           <span className="text-xs text-muted tnum">
             {files.length} {files.length === 1 ? 'file' : 'files'}
+            {reviewed.size > 0 && ` · ${reviewed.size}/${files.length} viewed`}
           </span>
 
           <span className="grow" />
@@ -244,7 +260,7 @@ export default function App() {
       <main className="mx-auto flex max-w-[1600px] items-start gap-5 p-4">
         <nav className="sticky top-28 max-h-[calc(100vh-8rem)] w-72 shrink-0 overflow-y-auto rounded-lg border border-line bg-panel p-2">
           <p className="eyebrow px-2 pb-2 pt-1">Changed files</p>
-          <FileTree entries={treeEntries} />
+          <FileTree entries={treeEntries} onToggleReviewed={toggleReviewed} />
         </nav>
         <div className="min-w-0 flex-1">
           {files.map((file) => (
@@ -255,6 +271,8 @@ export default function App() {
               comments={comments.filter((c) => c.filePath === filePath(file))}
               collapsed={collapsed.has(filePath(file))}
               onToggleCollapse={() => toggleCollapse(filePath(file))}
+              reviewed={reviewed.has(filePath(file))}
+              onToggleReviewed={() => toggleReviewed(filePath(file))}
               onCreate={onCreateComment}
               onUpdate={onUpdateComment}
               onDelete={onDeleteComment}

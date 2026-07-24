@@ -115,7 +115,7 @@ function CommentCard({ comment, onUpdate, onDelete }) {
   );
 }
 
-export default function FileDiff({ file, viewType, comments, collapsed, onToggleCollapse, onCreate, onUpdate, onDelete }) {
+export default function FileDiff({ file, viewType, comments, collapsed, onToggleCollapse, reviewed, onToggleReviewed, onCreate, onUpdate, onDelete }) {
   // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
   const [draft, setDraft] = useState(null);
   const [fileDraft, setFileDraft] = useState(false);
@@ -261,6 +261,10 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
         >
           <MessageSquarePlusIcon className="size-4" />
         </button>
+        <label className="flex shrink-0 items-center gap-1 font-sans text-[11px] text-muted">
+          <input type="checkbox" checked={!!reviewed} onChange={onToggleReviewed} className="accent-accent" />
+          Viewed
+        </label>
       </header>
       {(fileComments.length > 0 || fileDraft) && (
         <div className="divide-y divide-line border-b border-line">

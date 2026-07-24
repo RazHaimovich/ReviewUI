@@ -24,30 +24,39 @@ function StatusIcon({ type }) {
   return <FileDiffIcon className={clsx(cls, 'text-muted')} />;
 }
 
-function FileRow({ file, depth }) {
+function FileRow({ file, depth, onToggleReviewed }) {
   return (
-    <a
-      href={`#${file.path}`}
-      title={file.path}
+    <div
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
-      className="group flex items-center gap-1.5 rounded-md py-1 pr-2 font-mono text-xs text-muted hover:bg-panel2 hover:text-ink"
+      className={clsx('group flex items-center gap-1.5 rounded-md pr-2 hover:bg-panel2', file.reviewed && 'opacity-55')}
     >
-      <StatusIcon type={file.type} />
-      <span className="truncate">{file.name}</span>
-      <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] tnum">
-        {file.comments > 0 && (
-          <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-accent">
-            {file.comments}
-          </span>
-        )}
-        {file.adds > 0 && <span className="text-add">+{file.adds}</span>}
-        {file.dels > 0 && <span className="text-del">−{file.dels}</span>}
-      </span>
-    </a>
+      <input
+        type="checkbox"
+        checked={!!file.reviewed}
+        onChange={() => onToggleReviewed(file.path)}
+        title="Mark viewed"
+        className="shrink-0 accent-accent"
+      />
+      <a
+        href={`#${file.path}`}
+        title={file.path}
+        className="flex min-w-0 flex-1 items-center gap-1.5 py-1 font-mono text-xs text-muted hover:text-ink"
+      >
+        <StatusIcon type={file.type} />
+        <span className="truncate">{file.name}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] tnum">
+          {file.comments > 0 && (
+            <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-accent">{file.comments}</span>
+          )}
+          {file.adds > 0 && <span className="text-add">+{file.adds}</span>}
+          {file.dels > 0 && <span className="text-del">−{file.dels}</span>}
+        </span>
+      </a>
+    </div>
   );
 }
 
-function Directory({ name, node, depth }) {
+function Directory({ name, node, depth, onToggleReviewed }) {
   const [open, setOpen] = useState(true);
   const Chevron = open ? ChevronDownIcon : ChevronRightIcon;
   return (
@@ -60,27 +69,27 @@ function Directory({ name, node, depth }) {
         <Chevron className="size-3.5 shrink-0" />
         <span className="truncate">{name}</span>
       </button>
-      {open && <TreeLevel node={node} depth={depth + 1} />}
+      {open && <TreeLevel node={node} depth={depth + 1} onToggleReviewed={onToggleReviewed} />}
     </div>
   );
 }
 
-function TreeLevel({ node, depth }) {
+function TreeLevel({ node, depth, onToggleReviewed }) {
   return (
     <>
       {[...node.dirs.entries()].map(([name, child]) => (
-        <Directory key={name} name={name} node={child} depth={depth} />
+        <Directory key={name} name={name} node={child} depth={depth} onToggleReviewed={onToggleReviewed} />
       ))}
       {node.files.map((file) => (
-        <FileRow key={file.path} file={file} depth={depth} />
+        <FileRow key={file.path} file={file} depth={depth} onToggleReviewed={onToggleReviewed} />
       ))}
     </>
   );
 }
 
-export default function FileTree({ entries }) {
+export default function FileTree({ entries, onToggleReviewed }) {
   if (entries.length === 0) {
     return <p className="px-2 py-1 font-mono text-xs text-faint">No changes</p>;
   }
-  return <TreeLevel node={buildTree(entries)} depth={0} />;
+  return <TreeLevel node={buildTree(entries)} depth={0} onToggleReviewed={onToggleReviewed} />;
 }
