@@ -242,73 +242,85 @@ export default function App() {
 
           <span className="grow" />
 
-          <div className="flex items-center rounded-md bg-panel2 p-0.5">
-            {[
-              ['unified', Rows3Icon, 'Unified view'],
-              ['split', Columns2Icon, 'Split view']
-            ].map(([type, Icon, label]) => (
-              <Tooltip key={type} label={label}>
-                <button
-                  onClick={() => setViewType(type)}
-                  className={clsx(
-                    'grid size-7 place-items-center rounded',
-                    viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink'
-                  )}
-                >
-                  <Icon className="size-4" />
-                </button>
-              </Tooltip>
-            ))}
+          {/* Views: how the diff is displayed */}
+          <div className="flex items-center gap-1">
+            <div className="flex items-center rounded-md bg-panel2 p-0.5">
+              {[
+                ['unified', Rows3Icon, 'Unified view'],
+                ['split', Columns2Icon, 'Split view']
+              ].map(([type, Icon, label]) => (
+                <Tooltip key={type} label={label}>
+                  <button
+                    onClick={() => setViewType(type)}
+                    className={clsx(
+                      'grid size-7 place-items-center rounded',
+                      viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink'
+                    )}
+                  >
+                    <Icon className="size-4" />
+                  </button>
+                </Tooltip>
+              ))}
+            </div>
+
+            <Tooltip label={`Font size: ${fontSize}`}>
+              <button onClick={cycleFontSize} className={iconButton}>
+                <ALargeSmallIcon className="size-4" />
+              </button>
+            </Tooltip>
+
+            <Tooltip label={dark ? 'Light theme' : 'Dark theme'}>
+              <button onClick={() => setDark(!dark)} className={iconButton}>
+                {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
+              </button>
+            </Tooltip>
           </div>
 
-          <Tooltip
-            label={files.length === 0 ? 'No files to review' : allCollapsed ? 'Expand all files' : 'Collapse all files'}
-          >
-            <button
-              onClick={toggleAll}
-              disabled={files.length === 0}
-              className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
+          <div className="h-6 w-px bg-line" />
+
+          {/* Actions: operate on the review */}
+          <div className="flex items-center gap-1">
+            <Tooltip
+              label={
+                files.length === 0 ? 'No files to review' : allCollapsed ? 'Expand all files' : 'Collapse all files'
+              }
             >
-              {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
-            </button>
-          </Tooltip>
+              <button
+                onClick={toggleAll}
+                disabled={files.length === 0}
+                className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
+              >
+                {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
+              </button>
+            </Tooltip>
 
-          <Tooltip label={comments.length === 0 ? 'No comments yet' : 'All comments'}>
-            <button
-              onClick={() => setShowComments(true)}
-              disabled={comments.length === 0}
-              className={clsx(iconButton, 'relative disabled:pointer-events-none disabled:opacity-40')}
-            >
-              <MessagesSquareIcon className="size-4" />
-              {comments.length > 0 && (
-                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-accent text-[0.625rem] text-on-accent tnum">
-                  {comments.length}
-                </span>
-              )}
-            </button>
-          </Tooltip>
+            <Tooltip label={comments.length === 0 ? 'No comments yet' : 'All comments'}>
+              <button
+                onClick={() => setShowComments(true)}
+                disabled={comments.length === 0}
+                className={clsx(iconButton, 'relative disabled:pointer-events-none disabled:opacity-40')}
+              >
+                <MessagesSquareIcon className="size-4" />
+                {comments.length > 0 && (
+                  <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-accent text-[0.625rem] text-on-accent tnum">
+                    {comments.length}
+                  </span>
+                )}
+              </button>
+            </Tooltip>
 
-          <Tooltip label={comments.length === 0 && reviewed.size === 0 ? 'Nothing to reset' : 'Reset review'}>
-            <button
-              onClick={() => setConfirmReset(true)}
-              disabled={comments.length === 0 && reviewed.size === 0}
-              className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
-            >
-              <RotateCcwIcon className="size-4" />
-            </button>
-          </Tooltip>
+            <Tooltip label={comments.length === 0 && reviewed.size === 0 ? 'Nothing to reset' : 'Reset review'}>
+              <button
+                onClick={() => setConfirmReset(true)}
+                disabled={comments.length === 0 && reviewed.size === 0}
+                className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
+              >
+                <RotateCcwIcon className="size-4" />
+              </button>
+            </Tooltip>
+          </div>
 
-          <Tooltip label={`Font size: ${fontSize}`}>
-            <button onClick={cycleFontSize} className={iconButton}>
-              <ALargeSmallIcon className="size-4" />
-            </button>
-          </Tooltip>
-
-          <Tooltip label={dark ? 'Light theme' : 'Dark theme'}>
-            <button onClick={() => setDark(!dark)} className={iconButton}>
-              {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
-            </button>
-          </Tooltip>
+          <div className="h-6 w-px bg-line" />
 
           <Tooltip label={comments.length === 0 ? 'Add a comment first' : ''}>
             <button
