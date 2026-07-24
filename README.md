@@ -1,5 +1,8 @@
 # ReviewUI
 
+[![npm version](https://img.shields.io/npm/v/reviewui)](https://www.npmjs.com/package/reviewui)
+[![license](https://img.shields.io/npm/l/reviewui)](./LICENSE)
+
 **GitHub:** https://github.com/RazHaimovich/ReviewUI
 
 Review any git branch like a GitHub pull request, locally, and turn your review
