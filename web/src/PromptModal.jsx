@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Check, Copy, Terminal, X } from 'lucide-react';
 
 export default function PromptModal({ text, summary, onSummaryChange, onRegenerate, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -10,37 +11,53 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div
-        className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+        className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between border-b border-gray-300 px-4 py-2">
-          <h2 className="font-semibold">Claude Code prompt</h2>
-          <div className="flex gap-2 text-sm">
+        <header className="flex items-center justify-between border-b border-line px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="grid size-6 place-items-center rounded-md bg-accent-soft text-accent">
+              <Terminal className="size-3.5" />
+            </span>
+            <h2 className="text-sm font-semibold">Prompt for Claude Code</h2>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
             <button
               onClick={copy}
-              className="rounded bg-green-700 px-3 py-1 text-white hover:bg-green-800"
+              className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 font-medium text-on-accent hover:bg-accent-hover"
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              {copied ? 'Copied' : 'Copy'}
             </button>
-            <button onClick={onClose} className="rounded border border-gray-300 px-3 py-1 hover:bg-gray-100">
-              Close
+            <button
+              onClick={onClose}
+              title="Close"
+              className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel2 hover:text-ink"
+            >
+              <X className="size-4" />
             </button>
           </div>
         </header>
-        <div className="border-b border-gray-200 p-3">
+        <div className="border-b border-line p-3">
           <textarea
             rows={2}
             value={summary}
             onChange={(e) => onSummaryChange(e.target.value)}
             onBlur={onRegenerate}
             placeholder="Overall summary (optional) — applies to the whole review, e.g. “also add tests”"
-            className="w-full rounded border border-gray-300 p-2 text-sm"
+            className="w-full resize-y rounded-md border border-line-strong bg-bg p-2 text-sm text-ink placeholder:text-faint"
           />
         </div>
-        <pre className="overflow-auto whitespace-pre-wrap p-4 font-mono text-xs leading-relaxed">{text}</pre>
-        <footer className="border-t border-gray-300 px-4 py-2 text-xs text-gray-500">
+        <pre className="overflow-auto whitespace-pre-wrap bg-bg p-4 font-mono text-xs leading-relaxed text-ink">
+          {text}
+        </pre>
+        <footer className="flex items-center gap-1.5 border-t border-line px-4 py-2 font-mono text-[11px] text-faint">
+          <Terminal className="size-3" />
           Also printed to the terminal running ReviewUI.
         </footer>
       </div>

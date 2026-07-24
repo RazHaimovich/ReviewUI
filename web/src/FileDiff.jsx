@@ -1,8 +1,22 @@
-import { useState } from 'react';
-import { Diff, Hunk, getChangeKey } from 'react-diff-view';
+import { useMemo, useState } from 'react';
+import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view';
+import { Check, Pencil, Trash2 } from 'lucide-react';
+import { highlighter, languageFor } from './highlight.js';
 
 export function filePath(file) {
   return file.type === 'delete' ? file.oldPath : file.newPath;
+}
+
+export function fileStats(file) {
+  let adds = 0;
+  let dels = 0;
+  for (const hunk of file.hunks) {
+    for (const change of hunk.changes) {
+      if (change.isInsert) adds += 1;
+      if (change.isDelete) dels += 1;
+    }
+  }
+  return { adds, dels };
 }
 
 function diffLine(change) {
@@ -24,23 +38,26 @@ function lineInfo(changes) {
 function CommentForm({ initial = '', onSave, onCancel }) {
   const [body, setBody] = useState(initial);
   return (
-    <div className="bg-blue-50 p-2 font-sans">
+    <div className="bg-accent-soft/60 p-2.5 font-sans">
       <textarea
         autoFocus
         rows={3}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Leave a comment… (Shift-click another line to comment on a range)"
-        className="w-full rounded border border-gray-300 bg-white p-2 text-sm"
+        placeholder="Leave a comment…  (Shift-click another line to select a range)"
+        className="w-full resize-y rounded-md border border-line-strong bg-panel p-2 text-sm text-ink placeholder:text-faint"
       />
-      <div className="mt-1 flex justify-end gap-2 text-sm">
-        <button onClick={onCancel} className="rounded border border-gray-300 bg-white px-3 py-1 hover:bg-gray-100">
+      <div className="mt-2 flex justify-end gap-2 text-sm">
+        <button
+          onClick={onCancel}
+          className="rounded-md px-3 py-1 text-muted hover:bg-panel2 hover:text-ink"
+        >
           Cancel
         </button>
         <button
           disabled={!body.trim()}
           onClick={() => onSave(body.trim())}
-          className="rounded bg-green-700 px-3 py-1 text-white hover:bg-green-800 disabled:opacity-40"
+          className="rounded-md bg-accent px-3 py-1 font-medium text-on-accent hover:bg-accent-hover disabled:opacity-40"
         >
           Save
         </button>
@@ -53,7 +70,7 @@ function CommentCard({ comment, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const range =
     comment.endLine && comment.endLine !== comment.startLine
-      ? `L${comment.startLine}–L${comment.endLine}`
+      ? `L${comment.startLine}–${comment.endLine}`
       : `L${comment.startLine}`;
 
   if (editing) {
@@ -69,48 +86,55 @@ function CommentCard({ comment, onUpdate, onDelete }) {
     );
   }
 
+  const excluded = comment.included === false;
+  const iconBtn = 'grid size-6 place-items-center rounded text-faint hover:bg-panel2 hover:text-ink';
+
   return (
-    <div
-      className={`border-t border-amber-200 bg-amber-50 px-3 py-2 font-sans text-sm ${
-        comment.included === false ? 'opacity-50' : ''
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <span className="font-mono text-[10px] text-gray-500">
-            {range}
-            {comment.commitSha && ` · @${comment.commitSha.slice(0, 7)}`}
+    <div className={`bg-accent-soft/50 px-3 py-2.5 font-sans text-sm ${excluded ? 'opacity-45' : ''}`}>
+      <div className="mb-1 flex items-center gap-2">
+        <span className="font-mono text-[10px] tracking-wide text-accent tnum">{range}</span>
+        {comment.commitSha && (
+          <span className="rounded bg-panel2 px-1.5 font-mono text-[10px] text-muted">
+            @{comment.commitSha.slice(0, 7)}
           </span>
-          <p className="whitespace-pre-wrap">{comment.body}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2 text-xs">
-          <label className="flex items-center gap-1 text-gray-600" title="Include in the generated prompt">
-            <input
-              type="checkbox"
-              checked={comment.included !== false}
-              onChange={(e) => onUpdate(comment.id, { included: e.target.checked })}
-            />
-            include
-          </label>
-          <button onClick={() => setEditing(true)} className="rounded px-1 text-gray-500 hover:bg-amber-100">
-            Edit
-          </button>
-          <button
-            title="Delete comment"
-            onClick={() => onDelete(comment.id)}
-            className="rounded px-1 text-gray-400 hover:bg-amber-100 hover:text-red-700"
-          >
-            ✕
-          </button>
-        </div>
+        )}
+        <span className="grow" />
+        <button
+          title={excluded ? 'Include in prompt' : 'Exclude from prompt'}
+          onClick={() => onUpdate(comment.id, { included: excluded })}
+          className={`grid size-6 place-items-center rounded ${
+            excluded ? 'text-faint hover:bg-panel2' : 'text-accent hover:bg-panel2'
+          }`}
+        >
+          <Check className="size-3.5" strokeWidth={excluded ? 2 : 3} />
+        </button>
+        <button title="Edit" onClick={() => setEditing(true)} className={iconBtn}>
+          <Pencil className="size-3.5" />
+        </button>
+        <button title="Delete" onClick={() => onDelete(comment.id)} className={`${iconBtn} hover:text-del`}>
+          <Trash2 className="size-3.5" />
+        </button>
       </div>
+      <p className="whitespace-pre-wrap text-ink">{comment.body}</p>
+      {excluded && <p className="mt-1 font-mono text-[10px] text-faint">Excluded from prompt</p>}
     </div>
   );
 }
 
-export default function FileDiff({ file, comments, onCreate, onUpdate, onDelete }) {
+export default function FileDiff({ file, viewType, comments, onCreate, onUpdate, onDelete }) {
   const [draft, setDraft] = useState(null); // {hunk, anchorIndex, startIndex, endIndex, changeKey}
   const path = filePath(file);
+  const { adds, dels } = fileStats(file);
+
+  const tokens = useMemo(() => {
+    const language = languageFor(path);
+    if (!language) return undefined;
+    try {
+      return tokenize(file.hunks, { highlight: true, refractor: highlighter, language });
+    } catch {
+      return undefined;
+    }
+  }, [file, path]);
 
   const byKey = {};
   for (const c of comments) (byKey[c.changeKey] ??= []).push(c);
@@ -132,7 +156,7 @@ export default function FileDiff({ file, comments, onCreate, onUpdate, onDelete 
   const widgets = Object.fromEntries(
     Object.entries(byKey).map(([key, list]) => [
       key,
-      <div className="border-b border-amber-200">
+      <div className="divide-y divide-line border-y border-line">
         {list.map((c) => (
           <CommentCard key={c.id} comment={c} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
@@ -162,23 +186,40 @@ export default function FileDiff({ file, comments, onCreate, onUpdate, onDelete 
     ? draft.hunk.changes.slice(draft.startIndex, draft.endIndex + 1).map(getChangeKey)
     : [];
 
+  const badge =
+    file.type === 'add'
+      ? { text: 'added', cls: 'text-add' }
+      : file.type === 'delete'
+        ? { text: 'deleted', cls: 'text-del' }
+        : file.type === 'rename'
+          ? { text: 'renamed', cls: 'text-accent' }
+          : null;
+
   return (
-    <section id={path} className="mb-4 overflow-hidden rounded-md border border-gray-300">
-      <header className="flex items-center gap-2 border-b border-gray-300 bg-gray-100 px-3 py-2 font-mono text-xs text-gray-700">
-        {file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : path}
-        {file.type === 'add' && <span className="text-green-700">added</span>}
-        {file.type === 'delete' && <span className="text-red-700">deleted</span>}
-        {comments.length > 0 && (
-          <span className="rounded-full bg-amber-200 px-2 font-sans text-[10px]">{comments.length}</span>
-        )}
+    <section id={path} className="mb-4 scroll-mt-28 overflow-hidden rounded-lg border border-line bg-panel">
+      <header className="flex items-center gap-2 border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
+        <span className="truncate text-ink">
+          {file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : path}
+        </span>
+        {badge && <span className={`shrink-0 ${badge.cls}`}>{badge.text}</span>}
+        <span className="ml-auto flex shrink-0 items-center gap-2 tnum">
+          {comments.length > 0 && (
+            <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-[10px] text-accent">
+              {comments.length}
+            </span>
+          )}
+          {adds > 0 && <span className="text-add">+{adds}</span>}
+          {dels > 0 && <span className="text-del">−{dels}</span>}
+        </span>
       </header>
       <Diff
-        viewType="unified"
+        viewType={viewType}
         diffType={file.type}
         hunks={file.hunks}
         widgets={widgets}
         gutterEvents={gutterEvents}
         selectedChanges={selectedChanges}
+        tokens={tokens}
       >
         {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
       </Diff>
