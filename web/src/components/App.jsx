@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
 import { parseDiff } from 'react-diff-view';
-import { Columns2Icon, GitCompareIcon, MoonIcon, Rows3Icon, SparklesIcon, SunIcon } from 'lucide-react';
+import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  Columns2Icon,
+  GitCompareIcon,
+  MoonIcon,
+  Rows3Icon,
+  SparklesIcon,
+  SunIcon,
+} from 'lucide-react';
 import {
   getRepo,
   getCommits,
@@ -55,6 +64,7 @@ export default function App() {
   const [viewType, setViewType] = useState('unified');
   const [files, setFiles] = useState([]);
   const [comments, setComments] = useState([]);
+  const [collapsed, setCollapsed] = useState(() => new Set());
   const [prompt, setPrompt] = useState(null);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(null);
@@ -106,6 +116,14 @@ export default function App() {
   const onGenerate = () =>
     generatePrompt({ base, head, summary }).then(setPrompt).catch((err) => setError(err.message));
 
+  const toggleCollapse = (path) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+
   if (!repo) {
     return (
       <p className="p-6 font-mono text-sm text-muted">
@@ -120,6 +138,10 @@ export default function App() {
     ...fileStats(file),
     comments: comments.filter((c) => c.filePath === filePath(file)).length,
   }));
+
+  const paths = files.map(filePath);
+  const allCollapsed = paths.length > 0 && paths.every((p) => collapsed.has(p));
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(paths));
 
   const iconButton =
     'grid size-8 place-items-center rounded-md bg-panel2 text-muted hover:bg-line hover:text-ink';
@@ -166,6 +188,15 @@ export default function App() {
           </div>
 
           <button
+            title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
+            onClick={toggleAll}
+            disabled={files.length === 0}
+            className={`${iconButton} disabled:opacity-40`}
+          >
+            {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
+          </button>
+
+          <button
             title={dark ? 'Light theme' : 'Dark theme'}
             onClick={() => setDark(!dark)}
             className={iconButton}
@@ -208,6 +239,8 @@ export default function App() {
               file={file}
               viewType={viewType}
               comments={comments.filter((c) => c.filePath === filePath(file))}
+              collapsed={collapsed.has(filePath(file))}
+              onToggleCollapse={() => toggleCollapse(filePath(file))}
               onCreate={onCreateComment}
               onUpdate={onUpdateComment}
               onDelete={onDeleteComment}

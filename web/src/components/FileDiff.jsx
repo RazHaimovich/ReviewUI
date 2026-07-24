@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view';
-import { CheckIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { highlighter, languageFor } from '../lib/highlight.js';
 import { lineRange } from '../lib/lineRange.js';
 
@@ -106,7 +106,7 @@ function CommentCard({ comment, onUpdate, onDelete }) {
   );
 }
 
-export default function FileDiff({ file, viewType, comments, onCreate, onUpdate, onDelete }) {
+export default function FileDiff({ file, viewType, comments, collapsed, onToggleCollapse, onCreate, onUpdate, onDelete }) {
   // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
   const [draft, setDraft] = useState(null);
   const draggingRef = useRef(false);
@@ -216,6 +216,13 @@ export default function FileDiff({ file, viewType, comments, onCreate, onUpdate,
   return (
     <section id={path} className="mb-4 scroll-mt-28 overflow-hidden rounded-lg border border-line bg-panel">
       <header className="flex items-center gap-2 border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
+        <button
+          onClick={onToggleCollapse}
+          title={collapsed ? 'Expand file' : 'Collapse file'}
+          className="grid size-5 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
+        >
+          {collapsed ? <ChevronRightIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
+        </button>
         <span className="truncate text-ink">
           {file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : path}
         </span>
@@ -230,18 +237,20 @@ export default function FileDiff({ file, viewType, comments, onCreate, onUpdate,
           {dels > 0 && <span className="text-del">−{dels}</span>}
         </span>
       </header>
-      <Diff
-        viewType={viewType}
-        diffType={file.type}
-        hunks={file.hunks}
-        widgets={widgets}
-        gutterEvents={gutterEvents}
-        renderGutter={renderGutter}
-        selectedChanges={selectedChanges}
-        tokens={tokens}
-      >
-        {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
-      </Diff>
+      {!collapsed && (
+        <Diff
+          viewType={viewType}
+          diffType={file.type}
+          hunks={file.hunks}
+          widgets={widgets}
+          gutterEvents={gutterEvents}
+          renderGutter={renderGutter}
+          selectedChanges={selectedChanges}
+          tokens={tokens}
+        >
+          {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
+        </Diff>
+      )}
     </section>
   );
 }
