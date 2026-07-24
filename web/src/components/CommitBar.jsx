@@ -26,11 +26,10 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
     ...commits.map((c, i) => ({ value: c.sha, label: `${i + 1}. ${c.shortSha} · ${c.subject}` }))
   ]
 
-  const date = selected.date ? new Date(selected.date) : null
+  const date = selected?.date && new Date(selected.date)
+
   const formattedDate = date
-    ? [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join(
-        '-'
-      )
+    ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
     : null
 
   return (
