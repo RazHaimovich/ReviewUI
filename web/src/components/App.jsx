@@ -8,6 +8,7 @@ import {
   ChevronsUpDownIcon,
   Columns2Icon,
   GitCompareIcon,
+  Loader2Icon,
   MessagesSquareIcon,
   MoonIcon,
   RotateCcwIcon,
@@ -106,6 +107,7 @@ export default function App() {
   const [summary, setSummary] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
   const [showComments, setShowComments] = useState(false)
+  const [loadingDiff, setLoadingDiff] = useState(false)
   const [error, setError] = useState(null)
   const [dark, setDark] = useTheme()
   const [fontSize, cycleFontSize] = useFontSize()
@@ -135,12 +137,14 @@ export default function App() {
     if (!base || !head) return
     const params = { base, head }
     if (view !== 'final') Object.assign(params, { commit: view, mode })
+    setLoadingDiff(true)
     getDiff(params)
       .then(text => {
         setFiles(text.trim() ? parseDiff(text) : [])
         setError(null)
       })
       .catch(err => setError(err.message))
+      .finally(() => setLoadingDiff(false))
   }, [base, head, view, mode])
 
   const refreshComments = () => getComments().then(setComments)
@@ -202,7 +206,18 @@ export default function App() {
   }
 
   if (!repo) {
-    return <p className="p-6 font-mono text-sm text-muted">{error ? `ReviewUI error: ${error}` : 'Loading…'}</p>
+    return (
+      <div className="grid min-h-screen place-items-center bg-bg text-muted">
+        {error ? (
+          <p className="font-mono text-sm text-del">ReviewUI error: {error}</p>
+        ) : (
+          <span className="flex items-center gap-2 text-sm">
+            <Loader2Icon className="size-5 animate-spin" />
+            Loading…
+          </span>
+        )}
+      </div>
+    )
   }
 
   const treeEntries = files.map(file => ({
@@ -354,26 +369,31 @@ export default function App() {
           <FileTree entries={treeEntries} onToggleReviewed={toggleReviewed} />
         </nav>
         <div className="min-w-0 flex-1">
-          {files.map(file => (
-            <FileDiff
-              key={filePath(file)}
-              file={file}
-              viewType={viewType}
-              comments={comments.filter(c => c.filePath === filePath(file))}
-              collapsed={collapsed.has(filePath(file))}
-              onToggleCollapse={() => toggleCollapse(filePath(file))}
-              reviewed={reviewed.has(filePath(file))}
-              onToggleReviewed={() => toggleReviewed(filePath(file))}
-              onCreate={onCreateComment}
-              onUpdate={onUpdateComment}
-              onDelete={onDeleteComment}
-            />
-          ))}
-          {files.length === 0 && (
+          {loadingDiff ? (
+            <div className="grid place-items-center py-24 text-muted">
+              <Loader2Icon className="size-6 animate-spin" />
+            </div>
+          ) : files.length === 0 ? (
             <div className="grid place-items-center rounded-lg border border-dashed border-line py-24 text-center">
               <p className="text-sm text-muted">No changes between these branches.</p>
               <p className="mt-1 font-mono text-xs text-faint">Pick a different base or compare branch.</p>
             </div>
+          ) : (
+            files.map(file => (
+              <FileDiff
+                key={filePath(file)}
+                file={file}
+                viewType={viewType}
+                comments={comments.filter(c => c.filePath === filePath(file))}
+                collapsed={collapsed.has(filePath(file))}
+                onToggleCollapse={() => toggleCollapse(filePath(file))}
+                reviewed={reviewed.has(filePath(file))}
+                onToggleReviewed={() => toggleReviewed(filePath(file))}
+                onCreate={onCreateComment}
+                onUpdate={onUpdateComment}
+                onDelete={onDeleteComment}
+              />
+            ))
           )}
         </div>
       </main>
