@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { parseDiff } from 'react-diff-view'
 import {
@@ -35,6 +35,9 @@ import FileTree from './FileTree.jsx'
 import PromptModal from './PromptModal.jsx'
 import Select from './Select.jsx'
 import Tooltip from './Tooltip.jsx'
+
+// Stable reference for files with no comments, so React.memo on FileDiff holds.
+const NO_COMMENTS = []
 
 function DiffSkeleton() {
   return (
@@ -196,33 +199,47 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, head, view, mode])
 
-  const loadLongFile = async path => {
-    try {
-      const text = await getFileDiff({ ...diffParams(), file: path })
-      const [f] = parseDiff(text)
-      if (f) setParsed(prev => new Map(prev).set(filePath(f), f))
-    } catch (err) {
-      setError(err.message)
-    }
-  }
+  const loadLongFile = useCallback(
+    async path => {
+      try {
+        const params = { base, head }
+        if (view !== 'final') Object.assign(params, { commit: view, mode })
+        const text = await getFileDiff({ ...params, file: path })
+        const [f] = parseDiff(text)
+        if (f) setParsed(prev => new Map(prev).set(filePath(f), f))
+      } catch (err) {
+        setError(err.message)
+      }
+    },
+    [base, head, view, mode]
+  )
 
-  const refreshComments = () => getComments().then(setComments)
-  const onCreateComment = comment =>
-    createComment({
-      ...comment,
-      commitSha: view === 'final' ? null : view,
-      mode: view === 'final' ? null : mode
-    })
-      .then(refreshComments)
-      .catch(err => setError(err.message))
-  const onUpdateComment = (id, patch) =>
-    updateComment(id, patch)
-      .then(refreshComments)
-      .catch(err => setError(err.message))
-  const onDeleteComment = id =>
-    deleteComment(id)
-      .then(refreshComments)
-      .catch(err => setError(err.message))
+  const refreshComments = useCallback(() => getComments().then(setComments), [])
+  const onCreateComment = useCallback(
+    comment =>
+      createComment({
+        ...comment,
+        commitSha: view === 'final' ? null : view,
+        mode: view === 'final' ? null : mode
+      })
+        .then(refreshComments)
+        .catch(err => setError(err.message)),
+    [view, mode, refreshComments]
+  )
+  const onUpdateComment = useCallback(
+    (id, patch) =>
+      updateComment(id, patch)
+        .then(refreshComments)
+        .catch(err => setError(err.message)),
+    [refreshComments]
+  )
+  const onDeleteComment = useCallback(
+    id =>
+      deleteComment(id)
+        .then(refreshComments)
+        .catch(err => setError(err.message)),
+    [refreshComments]
+  )
 
   const onGenerate = () =>
     generatePrompt({ base, head, summary })
@@ -243,18 +260,24 @@ export default function App() {
     setConfirmReset(false)
   }
 
-  const toggleCollapse = path =>
-    setCollapsed(prev => {
-      const next = new Set(prev)
-      if (next.has(path)) next.delete(path)
-      else next.add(path)
-      return next
-    })
+  const toggleCollapse = useCallback(
+    path =>
+      setCollapsed(prev => {
+        const next = new Set(prev)
+        if (next.has(path)) next.delete(path)
+        else next.add(path)
+        return next
+      }),
+    []
+  )
 
   // Viewed and collapsed are separate: marking viewed auto-collapses once, but
-  // the file can be re-expanded via its chevron while staying viewed.
-  const toggleReviewed = path => {
-    const becomingReviewed = !reviewed.has(path)
+  // the file can be re-expanded via its chevron while staying viewed. Read the
+  // latest `reviewed` through a ref so the handler ref stays stable for memo.
+  const reviewedRef = useRef(reviewed)
+  reviewedRef.current = reviewed
+  const toggleReviewed = useCallback(path => {
+    const becomingReviewed = !reviewedRef.current.has(path)
     setReviewed(prev => {
       const next = new Set(prev)
       if (next.has(path)) next.delete(path)
@@ -262,7 +285,35 @@ export default function App() {
       return next
     })
     if (becomingReviewed) setCollapsed(prev => new Set(prev).add(path))
-  }
+  }, [])
+
+  // Group comments by file path once per change, instead of filtering per file.
+  const commentsByPath = useMemo(() => {
+    const map = new Map()
+    for (const c of comments) {
+      const list = map.get(c.filePath)
+      if (list) list.push(c)
+      else map.set(c.filePath, [c])
+    }
+    return map
+  }, [comments])
+
+  // One entry per changed file in git order; merge the loaded diff (if any).
+  // Memoized so each `file` object keeps a stable identity for React.memo.
+  const entries = useMemo(
+    () =>
+      fileList.map(s => {
+        const f = parsed.get(s.path)
+        return {
+          path: s.path,
+          adds: s.adds,
+          dels: s.dels,
+          oversized: s.oversized,
+          ...(f && { hunks: f.hunks, type: f.type, oldPath: f.oldPath, newPath: f.newPath })
+        }
+      }),
+    [fileList, parsed]
+  )
 
   if (!repo) {
     return (
@@ -279,24 +330,12 @@ export default function App() {
     )
   }
 
-  // One entry per changed file in git order; merge the loaded diff (if any).
-  const entries = fileList.map(s => {
-    const f = parsed.get(s.path)
-    return {
-      path: s.path,
-      adds: s.adds,
-      dels: s.dels,
-      oversized: s.oversized,
-      ...(f && { hunks: f.hunks, type: f.type, oldPath: f.oldPath, newPath: f.newPath })
-    }
-  })
-
   const treeEntries = entries.map(e => ({
     path: e.path,
     type: e.type ?? 'modify',
     adds: e.adds,
     dels: e.dels,
-    comments: comments.filter(c => c.filePath === e.path).length,
+    comments: (commentsByPath.get(e.path) ?? NO_COMMENTS).length,
     reviewed: reviewed.has(e.path)
   }))
 
@@ -457,11 +496,11 @@ export default function App() {
                 key={e.path}
                 file={e}
                 viewType={viewType}
-                comments={comments.filter(c => c.filePath === e.path)}
+                comments={commentsByPath.get(e.path) ?? NO_COMMENTS}
                 collapsed={collapsed.has(e.path)}
-                onToggleCollapse={() => toggleCollapse(e.path)}
+                onToggleCollapse={toggleCollapse}
                 reviewed={reviewed.has(e.path)}
-                onToggleReviewed={() => toggleReviewed(e.path)}
+                onToggleReviewed={toggleReviewed}
                 onCreate={onCreateComment}
                 onUpdate={onUpdateComment}
                 onDelete={onDeleteComment}

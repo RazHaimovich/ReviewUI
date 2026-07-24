@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view'
 import clsx from 'clsx'
 import { ChevronDownIcon, ChevronRightIcon, Loader2Icon, MessageSquarePlusIcon, PlusIcon } from 'lucide-react'
@@ -23,7 +23,7 @@ export function fileStats(file) {
   return { adds, dels }
 }
 
-export default function FileDiff({
+function FileDiff({
   file,
   viewType,
   comments,
@@ -185,7 +185,7 @@ export default function FileDiff({
       <header className="sticky top-[6.1rem] z-[5] flex items-center gap-2 rounded-t-lg border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
         <Tooltip label={collapsed ? 'Expand file' : 'Collapse file'}>
           <button
-            onClick={onToggleCollapse}
+            onClick={() => onToggleCollapse(path)}
             className="grid size-5 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
           >
             {collapsed ? <ChevronRightIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
@@ -216,7 +216,12 @@ export default function FileDiff({
             reviewed ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:bg-panel'
           )}
         >
-          <input type="checkbox" checked={!!reviewed} onChange={onToggleReviewed} className="accent-accent" />
+          <input
+            type="checkbox"
+            checked={!!reviewed}
+            onChange={() => onToggleReviewed(path)}
+            className="accent-accent"
+          />
           Viewed
         </label>
       </header>
@@ -236,7 +241,12 @@ export default function FileDiff({
           </div>
         )}
         {!collapsed &&
-          (loaded ? (
+          (loadingFile ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-sm font-medium text-accent">
+              <Loader2Icon className="size-4 animate-spin" />
+              Loading…
+            </div>
+          ) : loaded ? (
             <Diff
               viewType={viewType}
               diffType={file.type}
@@ -255,28 +265,24 @@ export default function FileDiff({
               onClick={async () => {
                 setLoadingFile(true)
                 try {
-                  await onLoad(path)
+                  // Hold the spinner briefly so the loading state is visible even
+                  // when the fetch is near-instant on a local repo.
+                  await Promise.all([onLoad(path), new Promise(r => setTimeout(r, 350))])
                 } finally {
                   setLoadingFile(false)
                 }
               }}
-              disabled={loadingFile}
-              className="flex w-full flex-col items-center gap-1 py-10 text-sm text-muted hover:bg-panel2 disabled:hover:bg-transparent"
+              className="flex w-full flex-col items-center gap-1 py-10 text-sm text-muted hover:bg-panel2"
             >
               <span>
                 This file is large — {(adds + dels).toLocaleString()} lines, {adds} added / {dels} removed.
               </span>
-              {loadingFile ? (
-                <span className="flex items-center gap-1.5 font-medium text-accent">
-                  <Loader2Icon className="size-4 animate-spin" />
-                  Loading…
-                </span>
-              ) : (
-                <span className="font-medium text-accent">Click to view</span>
-              )}
+              <span className="font-medium text-accent">Click to view</span>
             </button>
           ))}
       </div>
     </section>
   )
 }
+
+export default memo(FileDiff)
