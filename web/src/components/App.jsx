@@ -1,6 +1,16 @@
 import { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import { parseDiff } from 'react-diff-view';
-import { Columns2, GitCompare, Moon, Rows3, Sparkles, Sun } from 'lucide-react';
+import {
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  Columns2Icon,
+  GitCompareIcon,
+  MoonIcon,
+  Rows3Icon,
+  SparklesIcon,
+  SunIcon,
+} from 'lucide-react';
 import {
   getRepo,
   getCommits,
@@ -10,39 +20,54 @@ import {
   updateComment,
   deleteComment,
   generatePrompt,
-} from './api.js';
+} from '../lib/api.js';
 import CommitBar from './CommitBar.jsx';
 import FileDiff, { filePath, fileStats } from './FileDiff.jsx';
 import FileTree from './FileTree.jsx';
 import PromptModal from './PromptModal.jsx';
+import Select from './Select.jsx';
 
-function BranchSelect({ value, branches, onChange }) {
+function BranchSelect({ value, branches, onChange, ariaLabel }) {
   return (
-    <select
+    <Select
+      ariaLabel={ariaLabel}
+      value={value}
+      onChange={onChange}
+      options={branches.map((b) => ({ value: b, label: b }))}
       className="rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {branches.map((b) => (
-        <option key={b} value={b}>
-          {b}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 
 function useTheme() {
+  // Start from an explicit choice if the user made one, else the OS preference.
   const [dark, setDark] = useState(() =>
     localStorage.reviewuiTheme
       ? localStorage.reviewuiTheme === 'dark'
       : window.matchMedia('(prefers-color-scheme: dark)').matches
   );
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
-    localStorage.reviewuiTheme = dark ? 'dark' : 'light';
   }, [dark]);
-  return [dark, setDark];
+
+  // Follow live OS changes only while the user hasn't overridden the theme.
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e) => {
+      if (!localStorage.reviewuiTheme) setDark(e.matches);
+    };
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
+
+  // Toggling is an explicit choice: persist it (this is what makes it sticky).
+  const setTheme = (value) => {
+    localStorage.reviewuiTheme = value ? 'dark' : 'light';
+    setDark(value);
+  };
+
+  return [dark, setTheme];
 }
 
 export default function App() {
@@ -55,6 +80,7 @@ export default function App() {
   const [viewType, setViewType] = useState('unified');
   const [files, setFiles] = useState([]);
   const [comments, setComments] = useState([]);
+  const [collapsed, setCollapsed] = useState(() => new Set());
   const [prompt, setPrompt] = useState(null);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState(null);
@@ -106,6 +132,14 @@ export default function App() {
   const onGenerate = () =>
     generatePrompt({ base, head, summary }).then(setPrompt).catch((err) => setError(err.message));
 
+  const toggleCollapse = (path) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+
   if (!repo) {
     return (
       <p className="p-6 font-mono text-sm text-muted">
@@ -121,6 +155,10 @@ export default function App() {
     comments: comments.filter((c) => c.filePath === filePath(file)).length,
   }));
 
+  const paths = files.map(filePath);
+  const allCollapsed = paths.length > 0 && paths.every((p) => collapsed.has(p));
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(paths));
+
   const iconButton =
     'grid size-8 place-items-center rounded-md bg-panel2 text-muted hover:bg-line hover:text-ink';
 
@@ -130,15 +168,15 @@ export default function App() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
           <div className="flex items-center gap-2">
             <span className="grid size-6 place-items-center rounded-md bg-accent text-on-accent">
-              <GitCompare className="size-3.5" strokeWidth={2.5} />
+              <GitCompareIcon className="size-3.5" strokeWidth={2.5} />
             </span>
             <h1 className="text-sm font-semibold tracking-tight">{repo.name}</h1>
           </div>
 
           <div className="flex items-center gap-1.5">
-            <BranchSelect value={base} branches={repo.branches} onChange={setBase} />
+            <BranchSelect ariaLabel="Base branch" value={base} branches={repo.branches} onChange={setBase} />
             <span className="font-mono text-xs text-faint">→</span>
-            <BranchSelect value={head} branches={repo.branches} onChange={setHead} />
+            <BranchSelect ariaLabel="Compare branch" value={head} branches={repo.branches} onChange={setHead} />
           </div>
 
           <span className="text-xs text-muted tnum">
@@ -149,16 +187,14 @@ export default function App() {
 
           <div className="flex items-center rounded-md bg-panel2 p-0.5">
             {[
-              ['unified', Rows3, 'Unified view'],
-              ['split', Columns2, 'Split view'],
+              ['unified', Rows3Icon, 'Unified view'],
+              ['split', Columns2Icon, 'Split view'],
             ].map(([type, Icon, label]) => (
               <button
                 key={type}
                 title={label}
                 onClick={() => setViewType(type)}
-                className={`grid size-7 place-items-center rounded ${
-                  viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink'
-                }`}
+                className={clsx('grid size-7 place-items-center rounded', viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink')}
               >
                 <Icon className="size-4" />
               </button>
@@ -166,11 +202,20 @@ export default function App() {
           </div>
 
           <button
+            title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
+            onClick={toggleAll}
+            disabled={files.length === 0}
+            className={clsx(iconButton, 'disabled:opacity-40')}
+          >
+            {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
+          </button>
+
+          <button
             title={dark ? 'Light theme' : 'Dark theme'}
             onClick={() => setDark(!dark)}
             className={iconButton}
           >
-            {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
           </button>
 
           <button
@@ -178,7 +223,7 @@ export default function App() {
             disabled={comments.length === 0}
             className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Sparkles className="size-4" />
+            <SparklesIcon className="size-4" />
             Generate prompt
             {comments.length > 0 && (
               <span className="rounded bg-black/15 px-1.5 text-xs tnum">{comments.length}</span>
@@ -208,6 +253,8 @@ export default function App() {
               file={file}
               viewType={viewType}
               comments={comments.filter((c) => c.filePath === filePath(file))}
+              collapsed={collapsed.has(filePath(file))}
+              onToggleCollapse={() => toggleCollapse(filePath(file))}
               onCreate={onCreateComment}
               onUpdate={onUpdateComment}
               onDelete={onDeleteComment}

@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view';
-import { Check, Pencil, Trash2 } from 'lucide-react';
-import { highlighter, languageFor } from './highlight.js';
+import clsx from 'clsx';
+import { CheckIcon, ChevronDownIcon, ChevronRightIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { highlighter, languageFor } from '../lib/highlight.js';
+import { lineRange } from '../lib/lineRange.js';
 
 export function filePath(file) {
   return file.type === 'delete' ? file.oldPath : file.newPath;
@@ -19,22 +21,6 @@ export function fileStats(file) {
   return { adds, dels };
 }
 
-function diffLine(change) {
-  return (change.isInsert ? '+' : change.isDelete ? '-' : ' ') + change.content;
-}
-
-// New-side line when the change exists there, old-side line for deletions.
-function lineInfo(changes) {
-  const newLines = changes
-    .map((c) => (c.type === 'normal' ? c.newLineNumber : c.isInsert ? c.lineNumber : null))
-    .filter((n) => n !== null);
-  if (newLines.length > 0) {
-    return { side: 'new', startLine: newLines[0], endLine: newLines[newLines.length - 1] };
-  }
-  const oldLines = changes.map((c) => c.lineNumber);
-  return { side: 'old', startLine: oldLines[0], endLine: oldLines[oldLines.length - 1] };
-}
-
 function CommentForm({ initial = '', onSave, onCancel }) {
   const [body, setBody] = useState(initial);
   return (
@@ -44,7 +30,7 @@ function CommentForm({ initial = '', onSave, onCancel }) {
         rows={3}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Leave a comment…  (Shift-click another line to select a range)"
+        placeholder="Leave a comment…  (drag across line numbers to select a range)"
         className="w-full resize-y rounded-md border border-line-strong bg-panel p-2 text-sm text-ink placeholder:text-faint"
       />
       <div className="mt-2 flex justify-end gap-2 text-sm">
@@ -90,11 +76,11 @@ function CommentCard({ comment, onUpdate, onDelete }) {
   const iconBtn = 'grid size-6 place-items-center rounded text-faint hover:bg-panel2 hover:text-ink';
 
   return (
-    <div className={`bg-accent-soft/50 px-3 py-2.5 font-sans text-sm ${excluded ? 'opacity-45' : ''}`}>
+    <div className={clsx('bg-accent-soft/50 px-3 py-2.5 font-sans text-sm', excluded && 'opacity-45')}>
       <div className="mb-1 flex items-center gap-2">
-        <span className="font-mono text-[10px] tracking-wide text-accent tnum">{range}</span>
+        <span className="font-mono text-[11px] tracking-wide text-accent tnum">{range}</span>
         {comment.commitSha && (
-          <span className="rounded bg-panel2 px-1.5 font-mono text-[10px] text-muted">
+          <span className="rounded bg-panel2 px-1.5 font-mono text-[11px] text-muted">
             @{comment.commitSha.slice(0, 7)}
           </span>
         )}
@@ -102,29 +88,40 @@ function CommentCard({ comment, onUpdate, onDelete }) {
         <button
           title={excluded ? 'Include in prompt' : 'Exclude from prompt'}
           onClick={() => onUpdate(comment.id, { included: excluded })}
-          className={`grid size-6 place-items-center rounded ${
-            excluded ? 'text-faint hover:bg-panel2' : 'text-accent hover:bg-panel2'
-          }`}
+          className={clsx('grid size-6 place-items-center rounded hover:bg-panel2', excluded ? 'text-faint' : 'text-accent')}
         >
-          <Check className="size-3.5" strokeWidth={excluded ? 2 : 3} />
+          <CheckIcon className="size-3.5" strokeWidth={excluded ? 2 : 3} />
         </button>
         <button title="Edit" onClick={() => setEditing(true)} className={iconBtn}>
-          <Pencil className="size-3.5" />
+          <PencilIcon className="size-3.5" />
         </button>
-        <button title="Delete" onClick={() => onDelete(comment.id)} className={`${iconBtn} hover:text-del`}>
-          <Trash2 className="size-3.5" />
+        <button title="Delete" onClick={() => onDelete(comment.id)} className={clsx(iconBtn, 'hover:text-del')}>
+          <Trash2Icon className="size-3.5" />
         </button>
       </div>
       <p className="whitespace-pre-wrap text-ink">{comment.body}</p>
-      {excluded && <p className="mt-1 font-mono text-[10px] text-faint">Excluded from prompt</p>}
+      {excluded && <p className="mt-1 font-mono text-[11px] text-faint">Excluded from prompt</p>}
     </div>
   );
 }
 
-export default function FileDiff({ file, viewType, comments, onCreate, onUpdate, onDelete }) {
-  const [draft, setDraft] = useState(null); // {hunk, anchorIndex, startIndex, endIndex, changeKey}
+export default function FileDiff({ file, viewType, comments, collapsed, onToggleCollapse, onCreate, onUpdate, onDelete }) {
+  // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
+  const [draft, setDraft] = useState(null);
+  const draggingRef = useRef(false);
   const path = filePath(file);
   const { adds, dels } = fileStats(file);
+
+  // End a drag released anywhere (including outside the gutter) → open the form.
+  useEffect(() => {
+    const onUp = () => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+      setDraft((prev) => (prev ? { ...prev, open: true } : prev));
+    };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+  }, []);
 
   const tokens = useMemo(() => {
     const language = languageFor(path);
@@ -138,16 +135,13 @@ export default function FileDiff({ file, viewType, comments, onCreate, onUpdate,
 
   const byKey = {};
   for (const c of comments) (byKey[c.changeKey] ??= []).push(c);
-  if (draft) byKey[draft.changeKey] ??= [];
+  if (draft?.open) byKey[draft.changeKey] ??= [];
 
   const saveDraft = (body) => {
-    const changes = draft.hunk.changes.slice(draft.startIndex, draft.endIndex + 1);
-    const context = draft.hunk.changes.slice(Math.max(0, draft.startIndex - 2), draft.endIndex + 3);
     onCreate({
       filePath: path,
       changeKey: draft.changeKey,
-      ...lineInfo(changes),
-      snippet: context.map(diffLine).join('\n'),
+      ...lineRange(draft.hunk.changes, draft.startIndex, draft.endIndex),
       body,
     });
     setDraft(null);
@@ -160,26 +154,49 @@ export default function FileDiff({ file, viewType, comments, onCreate, onUpdate,
         {list.map((c) => (
           <CommentCard key={c.id} comment={c} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
-        {draft?.changeKey === key && <CommentForm onCancel={() => setDraft(null)} onSave={saveDraft} />}
+        {draft?.open && draft.changeKey === key && (
+          <CommentForm onCancel={() => setDraft(null)} onSave={saveDraft} />
+        )}
       </div>,
     ])
   );
 
-  // ponytail: v3.3 Hunk ignores its own event props — events must go on Diff
+  const hunkOf = (change) => file.hunks.find((h) => h.changes.includes(change));
+
+  // ponytail: v3.3 Hunk ignores its own event props — events go on Diff.
+  // Gutter-only interaction: press = anchor, drag = extend, release = open form.
   const gutterEvents = {
-    onClick: ({ change }, event) => {
-      const hunk = file.hunks.find((h) => h.changes.includes(change));
+    onMouseDown: ({ change }, event) => {
+      const hunk = hunkOf(change);
       if (!hunk) return;
+      event.preventDefault(); // stop text selection while dragging the gutter
       const index = hunk.changes.indexOf(change);
+      draggingRef.current = true;
+      setDraft({ hunk, anchorIndex: index, startIndex: index, endIndex: index, changeKey: getChangeKey(change), open: false });
+    },
+    onMouseEnter: ({ change }) => {
+      if (!draggingRef.current) return;
+      const hunk = hunkOf(change);
       setDraft((prev) => {
-        if (event?.shiftKey && prev && prev.hunk === hunk) {
-          const startIndex = Math.min(prev.anchorIndex, index);
-          const endIndex = Math.max(prev.anchorIndex, index);
-          return { ...prev, startIndex, endIndex, changeKey: getChangeKey(hunk.changes[endIndex]) };
-        }
-        return { hunk, anchorIndex: index, startIndex: index, endIndex: index, changeKey: getChangeKey(change) };
+        if (!prev || hunk !== prev.hunk) return prev;
+        const index = hunk.changes.indexOf(change);
+        const startIndex = Math.min(prev.anchorIndex, index);
+        const endIndex = Math.max(prev.anchorIndex, index);
+        return { ...prev, startIndex, endIndex, changeKey: getChangeKey(hunk.changes[endIndex]) };
       });
     },
+  };
+
+  const renderGutter = ({ change, renderDefault, wrapInAnchor }) => {
+    if (!change) return wrapInAnchor(renderDefault());
+    return (
+      <>
+        {wrapInAnchor(renderDefault())}
+        <span className="gutter-plus" aria-hidden="true">
+          <PlusIcon className="size-3" strokeWidth={3} />
+        </span>
+      </>
+    );
   };
 
   const selectedChanges = draft
@@ -198,13 +215,20 @@ export default function FileDiff({ file, viewType, comments, onCreate, onUpdate,
   return (
     <section id={path} className="mb-4 scroll-mt-28 overflow-hidden rounded-lg border border-line bg-panel">
       <header className="flex items-center gap-2 border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
+        <button
+          onClick={onToggleCollapse}
+          title={collapsed ? 'Expand file' : 'Collapse file'}
+          className="grid size-5 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
+        >
+          {collapsed ? <ChevronRightIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
+        </button>
         <span className="truncate text-ink">
           {file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : path}
         </span>
-        {badge && <span className={`shrink-0 ${badge.cls}`}>{badge.text}</span>}
+        {badge && <span className={clsx('shrink-0', badge.cls)}>{badge.text}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2 tnum">
           {comments.length > 0 && (
-            <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-[10px] text-accent">
+            <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-[11px] text-accent">
               {comments.length}
             </span>
           )}
@@ -212,17 +236,20 @@ export default function FileDiff({ file, viewType, comments, onCreate, onUpdate,
           {dels > 0 && <span className="text-del">−{dels}</span>}
         </span>
       </header>
-      <Diff
-        viewType={viewType}
-        diffType={file.type}
-        hunks={file.hunks}
-        widgets={widgets}
-        gutterEvents={gutterEvents}
-        selectedChanges={selectedChanges}
-        tokens={tokens}
-      >
-        {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
-      </Diff>
+      {!collapsed && (
+        <Diff
+          viewType={viewType}
+          diffType={file.type}
+          hunks={file.hunks}
+          widgets={widgets}
+          gutterEvents={gutterEvents}
+          renderGutter={renderGutter}
+          selectedChanges={selectedChanges}
+          tokens={tokens}
+        >
+          {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
+        </Diff>
+      )}
     </section>
   );
 }

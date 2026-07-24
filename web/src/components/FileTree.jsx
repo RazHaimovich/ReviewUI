@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, FilePlus2, FileMinus2, FilePen, FileDiff as FileDiffIcon } from 'lucide-react';
+import clsx from 'clsx';
+import { ChevronDownIcon, ChevronRightIcon, FilePlus2Icon, FileMinus2Icon, FilePenIcon, FileDiffIcon } from 'lucide-react';
 
 function buildTree(entries) {
   const root = { dirs: new Map(), files: [] };
@@ -17,10 +18,10 @@ function buildTree(entries) {
 
 function StatusIcon({ type }) {
   const cls = 'size-3.5 shrink-0';
-  if (type === 'add') return <FilePlus2 className={`${cls} text-add`} />;
-  if (type === 'delete') return <FileMinus2 className={`${cls} text-del`} />;
-  if (type === 'rename') return <FilePen className={`${cls} text-accent`} />;
-  return <FileDiffIcon className={`${cls} text-muted`} />;
+  if (type === 'add') return <FilePlus2Icon className={clsx(cls, 'text-add')} />;
+  if (type === 'delete') return <FileMinus2Icon className={clsx(cls, 'text-del')} />;
+  if (type === 'rename') return <FilePenIcon className={clsx(cls, 'text-accent')} />;
+  return <FileDiffIcon className={clsx(cls, 'text-muted')} />;
 }
 
 function FileRow({ file, depth }) {
@@ -33,7 +34,7 @@ function FileRow({ file, depth }) {
     >
       <StatusIcon type={file.type} />
       <span className="truncate">{file.name}</span>
-      <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[10px] tnum">
+      <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] tnum">
         {file.comments > 0 && (
           <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-accent">
             {file.comments}
@@ -48,7 +49,7 @@ function FileRow({ file, depth }) {
 
 function Directory({ name, node, depth }) {
   const [open, setOpen] = useState(true);
-  const Chevron = open ? ChevronDown : ChevronRight;
+  const Chevron = open ? ChevronDownIcon : ChevronRightIcon;
   return (
     <div>
       <button

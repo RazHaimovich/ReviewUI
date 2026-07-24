@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Copy, Terminal, X } from 'lucide-react';
+import { CheckIcon, CopyIcon, TerminalIcon, XIcon } from 'lucide-react';
 
 export default function PromptModal({ text, summary, onSummaryChange, onRegenerate, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -22,7 +22,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
         <header className="flex items-center justify-between border-b border-line px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="grid size-6 place-items-center rounded-md bg-accent-soft text-accent">
-              <Terminal className="size-3.5" />
+              <TerminalIcon className="size-3.5" />
             </span>
             <h2 className="text-sm font-semibold">Prompt for Claude Code</h2>
           </div>
@@ -31,7 +31,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
               onClick={copy}
               className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 font-medium text-on-accent hover:bg-accent-hover"
             >
-              {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
               {copied ? 'Copied' : 'Copy'}
             </button>
             <button
@@ -39,7 +39,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
               title="Close"
               className="grid size-8 place-items-center rounded-md text-muted hover:bg-panel2 hover:text-ink"
             >
-              <X className="size-4" />
+              <XIcon className="size-4" />
             </button>
           </div>
         </header>
@@ -57,7 +57,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
           {text}
         </pre>
         <footer className="flex items-center gap-1.5 border-t border-line px-4 py-2 font-mono text-[11px] text-faint">
-          <Terminal className="size-3" />
+          <TerminalIcon className="size-3" />
           Also printed to the terminal running ReviewUI.
         </footer>
       </div>

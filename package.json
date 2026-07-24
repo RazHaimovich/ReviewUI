@@ -1,6 +1,6 @@
 {
   "name": "reviewui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Review any git branch like a GitHub PR, locally, and hand the comments to Claude Code as a prompt.",
   "type": "module",
   "bin": {
@@ -41,8 +41,12 @@
     "express": "^4.21.0"
   },
   "devDependencies": {
+    "@floating-ui/react": "^0.27.20",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "clsx": "^2.1.1",
     "lucide-react": "^1.26.0",
     "react": "^19.2.8",
     "react-diff-view": "^3.3.3",
