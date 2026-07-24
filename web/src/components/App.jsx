@@ -35,6 +35,40 @@ import PromptModal from './PromptModal.jsx'
 import Select from './Select.jsx'
 import Tooltip from './Tooltip.jsx'
 
+function DiffSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4" aria-hidden="true">
+      {[0, 1, 2].map(i => (
+        <div key={i} className="overflow-hidden rounded-lg border border-line bg-panel">
+          <div className="flex items-center gap-2 border-b border-line bg-panel2 px-3 py-2.5">
+            <div className="size-4 rounded bg-line" />
+            <div className="h-3 w-48 rounded bg-line" />
+            <div className="ml-auto h-3 w-16 rounded bg-line" />
+          </div>
+          <div className="space-y-2.5 p-3">
+            {[82, 64, 74, 56, 70, 60].map((w, j) => (
+              <div key={j} className="h-3 rounded bg-panel2" style={{ width: `${w}%` }} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function TreeSkeleton() {
+  return (
+    <div className="animate-pulse space-y-2 px-1 py-1" aria-hidden="true">
+      {[70, 55, 82, 48, 64, 74, 52, 60].map((w, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="size-3.5 shrink-0 rounded bg-line" />
+          <div className="h-3 rounded bg-panel2" style={{ width: `${w}%` }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function BranchSelect({ value, branches, onChange, ariaLabel }) {
   return (
     <Select
@@ -251,10 +285,12 @@ export default function App() {
             <BranchSelect ariaLabel="Compare branch" value={head} branches={repo.branches} onChange={setHead} />
           </div>
 
-          <span className="text-xs text-muted tnum">
-            {files.length} {files.length === 1 ? 'file' : 'files'}
-            {reviewed.size > 0 && ` · ${reviewed.size}/${files.length} viewed`}
-          </span>
+          {!loadingDiff && (
+            <span className="text-xs text-muted tnum">
+              {files.length} {files.length === 1 ? 'file' : 'files'}
+              {reviewed.size > 0 && ` · ${reviewed.size}/${files.length} viewed`}
+            </span>
+          )}
 
           <span className="grow" />
 
@@ -366,13 +402,11 @@ export default function App() {
       <main className="mx-auto flex max-w-[1600px] items-start gap-5 p-4">
         <nav className="sticky top-28 max-h-[calc(100vh-8rem)] w-72 shrink-0 overflow-y-auto rounded-lg border border-line bg-panel p-2">
           <p className="eyebrow px-2 pb-2 pt-1">Changed files</p>
-          <FileTree entries={treeEntries} onToggleReviewed={toggleReviewed} />
+          {loadingDiff ? <TreeSkeleton /> : <FileTree entries={treeEntries} onToggleReviewed={toggleReviewed} />}
         </nav>
         <div className="min-w-0 flex-1">
           {loadingDiff ? (
-            <div className="grid place-items-center py-24 text-muted">
-              <Loader2Icon className="size-6 animate-spin" />
-            </div>
+            <DiffSkeleton />
           ) : files.length === 0 ? (
             <div className="grid place-items-center rounded-lg border border-dashed border-line py-24 text-center">
               <p className="text-sm text-muted">No changes between these branches.</p>
