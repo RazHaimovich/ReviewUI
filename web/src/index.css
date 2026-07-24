@@ -19,6 +19,8 @@
   --c-on-accent: #ffffff;
   --c-add: #1a7f37;
   --c-del: #cf2231;
+  --c-selection: #b9b2f5;
+  --c-selection-ink: #14122e;
   --c-shadow: 0 1px 2px rgba(20, 20, 40, 0.06), 0 1px 1px rgba(20, 20, 40, 0.04);
 }
 .dark {
@@ -36,6 +38,8 @@
   --c-on-accent: #0a0a10;
   --c-add: #3fb950;
   --c-del: #f85149;
+  --c-selection: #4a3fb0;
+  --c-selection-ink: #f2f0ff;
   --c-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
@@ -79,7 +83,8 @@ body {
 }
 
 ::selection {
-  background: var(--c-accent-soft);
+  background: var(--c-selection);
+  color: var(--c-selection-ink);
 }
 
 /* Tailwind v4's reset drops the button pointer cursor — restore it. */
