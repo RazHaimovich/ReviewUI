@@ -1,16 +1,21 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { createApp } from './app.js'
-import { isGitRepo } from './git.js'
+import { git, isGitRepo } from './git.js'
 
-const BASE_PORT = 41096
+// REVIEWUI_PORT overrides the starting port (kept in sync with the Vite dev proxy).
+const BASE_PORT = Number(process.env.REVIEWUI_PORT) || 41096
 const MAX_ATTEMPTS = 20
-const repoDir = process.cwd()
+const cwd = process.cwd()
 
-if (!(await isGitRepo(repoDir))) {
-  console.error(`reviewui: not a git repository: ${repoDir}`)
+if (!(await isGitRepo(cwd))) {
+  console.error(`reviewui: not a git repository: ${cwd}`)
   process.exit(1)
 }
+
+// Run all git commands from the repo root so file lists (whole-repo, root-relative)
+// and per-file diffs use the same pathspecs even when launched in a subdirectory.
+const repoDir = (await git(cwd, 'rev-parse', '--show-toplevel')).trim()
 
 // Try BASE_PORT, then the next ports upward until one is free.
 function listen(app, port, attemptsLeft) {
@@ -21,7 +26,7 @@ function listen(app, port, attemptsLeft) {
       listen(app, port + 1, attemptsLeft - 1)
     } else if (err.code === 'EADDRINUSE') {
       console.error(
-        `reviewui: no free port in ${BASE_PORT}-${BASE_PORT + MAX_ATTEMPTS} — is ReviewUI already running everywhere?`
+        `reviewui: no free port in ${BASE_PORT}-${BASE_PORT + MAX_ATTEMPTS} - is ReviewUI already running everywhere?`
       )
       process.exit(1)
     } else {

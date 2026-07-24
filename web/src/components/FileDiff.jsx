@@ -1,26 +1,14 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useMemo, useRef, useState } from 'react'
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view'
 import clsx from 'clsx'
 import { ChevronDownIcon, ChevronRightIcon, Loader2Icon, MessageSquarePlusIcon, PlusIcon } from 'lucide-react'
 import { highlighter, languageFor } from '../lib/highlight.js'
-import { lineRange } from '../lib/lineRange.js'
+import { lineNumberOn, lineRange } from '../lib/lineRange.js'
 import { CommentCard, CommentForm } from './Comment.jsx'
 import Tooltip from './Tooltip.jsx'
 
 export function filePath(file) {
   return file.type === 'delete' ? file.oldPath : file.newPath
-}
-
-export function fileStats(file) {
-  let adds = 0
-  let dels = 0
-  for (const hunk of file.hunks) {
-    for (const change of hunk.changes) {
-      if (change.isInsert) adds += 1
-      if (change.isDelete) dels += 1
-    }
-  }
-  return { adds, dels }
 }
 
 function FileDiff({
@@ -54,17 +42,6 @@ function FileDiff({
     onCreate({ filePath: path, scope: 'file', body })
     setFileDraft(false)
   }
-
-  // End a drag released anywhere (including outside the gutter) → open the form.
-  useEffect(() => {
-    const onUp = () => {
-      if (!draggingRef.current) return
-      draggingRef.current = false
-      setDraft(prev => (prev ? { ...prev, open: true } : prev))
-    }
-    window.addEventListener('mouseup', onUp)
-    return () => window.removeEventListener('mouseup', onUp)
-  }, [])
 
   const tokens = useMemo(() => {
     if (!loaded || collapsed) return undefined
@@ -105,7 +82,7 @@ function FileDiff({
 
   const hunkOf = change => file.hunks.find(h => h.changes.includes(change))
 
-  // ponytail: v3.3 Hunk ignores its own event props — events go on Diff.
+  // ponytail: v3.3 Hunk ignores its own event props - events go on Diff.
   // Gutter-only interaction: press = anchor, drag = extend, release = open form.
   const gutterEvents = {
     onMouseDown: ({ change }, event) => {
@@ -122,6 +99,16 @@ function FileDiff({
         changeKey: getChangeKey(change),
         open: false
       })
+      // Attach the release handler only for the duration of this drag, so we
+      // don't keep one global listener per mounted file. Release may land
+      // outside the gutter, so it must be on the window.
+      const onUp = () => {
+        window.removeEventListener('mouseup', onUp)
+        if (!draggingRef.current) return
+        draggingRef.current = false
+        setDraft(prev => (prev ? { ...prev, open: true } : prev))
+      }
+      window.addEventListener('mouseup', onUp)
     },
     onMouseEnter: ({ change }) => {
       if (!draggingRef.current) return
@@ -156,15 +143,10 @@ function FileDiff({
     start: c.startLine,
     end: c.endLine ?? c.startLine
   }))
-  const lineNumberOn = (ch, side) => {
-    if (!ch) return null
-    if (side === 'old') return ch.type === 'normal' ? ch.oldLineNumber : ch.isDelete ? ch.lineNumber : null
-    return ch.type === 'normal' ? ch.newLineNumber : ch.isInsert ? ch.lineNumber : null
-  }
   const generateLineClassName = ({ changes }) =>
     changes.some(ch =>
       commentRanges.some(r => {
-        const n = lineNumberOn(ch, r.side)
+        const n = ch && lineNumberOn(ch, r.side)
         return n != null && n >= r.start && n <= r.end
       })
     )
@@ -191,7 +173,9 @@ function FileDiff({
             {collapsed ? <ChevronRightIcon className="size-4" /> : <ChevronDownIcon className="size-4" />}
           </button>
         </Tooltip>
-        <span className="truncate text-ink">{file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : path}</span>
+        <span className="truncate text-ink">
+          {file.type === 'rename' && file.oldPath ? `${file.oldPath} → ${file.newPath}` : path}
+        </span>
         {badge && <span className={clsx('shrink-0', badge.cls)}>{badge.text}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2 tnum">
           {comments.length > 0 && (
@@ -246,6 +230,8 @@ function FileDiff({
               <Loader2Icon className="size-4 animate-spin" />
               Loading…
             </div>
+          ) : file.binary ? (
+            <p className="py-10 text-center text-sm text-muted">Binary file - not shown.</p>
           ) : loaded ? (
             <Diff
               viewType={viewType}
@@ -275,7 +261,7 @@ function FileDiff({
               className="flex w-full flex-col items-center gap-1 py-10 text-sm text-muted hover:bg-panel2"
             >
               <span>
-                This file is large — {(adds + dels).toLocaleString()} lines, {adds} added / {dels} removed.
+                This file is large - {(adds + dels).toLocaleString()} lines, {adds} added / {dels} removed.
               </span>
               <span className="font-medium text-accent">Click to view</span>
             </button>

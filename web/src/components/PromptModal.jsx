@@ -5,9 +5,16 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
   const [copied, setCopied] = useState(false)
 
   const copy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    // Regenerate first so an unsaved summary edit is included, then copy the
+    // fresh text rather than the possibly-stale `text` prop.
+    const fresh = await onRegenerate()
+    try {
+      await navigator.clipboard.writeText(fresh ?? text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard blocked (e.g. no permission) - leave the button unchanged
+    }
   }
 
   return (
@@ -49,7 +56,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
             value={summary}
             onChange={e => onSummaryChange(e.target.value)}
             onBlur={onRegenerate}
-            placeholder="Overall summary (optional) — applies to the whole review, e.g. “also add tests”"
+            placeholder="Overall summary (optional) - applies to the whole review, e.g. “also add tests”"
             className="w-full resize-y rounded-md border border-line-strong bg-bg p-2 text-sm text-ink placeholder:text-faint"
           />
         </div>

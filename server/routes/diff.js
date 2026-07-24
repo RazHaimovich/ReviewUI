@@ -30,9 +30,11 @@ export function diffRoutes(repoDir) {
         adds: f.adds,
         dels: f.dels,
         binary: f.binary,
+        type: f.type,
         oversized: !f.binary && f.adds + f.dels > LONG_FILE_LINES
       }))
-      const exclude = files.filter(f => f.oversized).map(f => f.path)
+      // Binary files have no useful text diff; skip them (and long files) here.
+      const exclude = files.filter(f => f.oversized || f.binary).map(f => f.path)
       const diff = await g.diff(repoDir, { ...req.query, exclude })
       res.json({ diff, files })
     } catch (err) {

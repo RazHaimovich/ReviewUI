@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import { writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { createApp } from '../server/app.js'
 import { makeFixtureRepo } from './fixture.js'
 
@@ -244,6 +246,42 @@ test('a whole-file comment needs no line and renders as (whole file) in the prom
 
   for (const c of await (await fetch(`${base}/api/comments`)).json()) {
     await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' })
+  }
+})
+
+test('renames, binary files and non-ASCII paths resolve; per-commit lists are non-empty', async () => {
+  const fx = makeFixtureRepo()
+  // One commit on feature: a rename, a binary file, and a spaced non-ASCII path.
+  fx.git('mv', 'src/bye.js', 'src/farewell.js')
+  writeFileSync(path.join(fx.dir, 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3, 255, 254, 0]))
+  writeFileSync(path.join(fx.dir, 'café menu.txt'), 'a coffee\n')
+  fx.git('add', '-A')
+  fx.git('commit', '-m', 'rename and add assets')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const { files } = await (await fetch(`${b}/api/diff?base=main&head=feature`)).json()
+    const byPath = Object.fromEntries(files.map(f => [f.path, f]))
+
+    // binary file is flagged
+    assert.equal(byPath['logo.png'].binary, true)
+
+    // non-ASCII + space path is unquoted, so it matches gitdiff-parser's newPath
+    assert.ok(byPath['café menu.txt'], 'non-ASCII path unquoted')
+
+    // The rename is only a rename within its own commit (bye.js never existed on
+    // main). The per-commit list must be non-empty (regression: --no-patch) and
+    // key the rename by its NEW path with type 'rename'.
+    const commits = await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()
+    const last = commits[commits.length - 1].sha
+    const { files: cf } = await (await fetch(`${b}/api/diff?base=main&head=feature&commit=${last}&mode=single`)).json()
+    assert.ok(cf.length > 0, 'single-commit view lists files')
+    const rename = cf.find(f => f.path === 'src/farewell.js')
+    assert.ok(rename, 'rename keyed by new path')
+    assert.equal(rename.type, 'rename')
+  } finally {
+    srv.close()
   }
 })
 

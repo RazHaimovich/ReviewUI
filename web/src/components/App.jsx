@@ -137,7 +137,7 @@ export default function App() {
   const [view, setView] = useState('final') // 'final' or a commit sha
   const [mode, setMode] = useState('single')
   const [viewType, setViewType] = useState('unified')
-  const [fileList, setFileList] = useState([]) // ordered [{ path, adds, dels, oversized }]
+  const [fileList, setFileList] = useState([]) // ordered [{ path, adds, dels, oversized, binary, type }]
   const [parsed, setParsed] = useState(() => new Map()) // path -> parsed diff file (loaded)
   const [comments, setComments] = useState([])
   const [collapsed, setCollapsed] = useState(() => new Set())
@@ -178,6 +178,12 @@ export default function App() {
     return params
   }
 
+  // Identifies the current diff view; a late async load whose key no longer
+  // matches is discarded so it can't inject a stale view's hunks.
+  const diffKey = `${base}|${head}|${view}|${mode}`
+  const diffKeyRef = useRef(diffKey)
+  diffKeyRef.current = diffKey
+
   useEffect(() => {
     if (!base || !head) return
     let stale = false
@@ -201,10 +207,13 @@ export default function App() {
 
   const loadLongFile = useCallback(
     async path => {
+      const key = diffKeyRef.current
       try {
         const params = { base, head }
         if (view !== 'final') Object.assign(params, { commit: view, mode })
         const text = await getFileDiff({ ...params, file: path })
+        // Bail if the view changed while fetching - else we'd merge stale hunks.
+        if (diffKeyRef.current !== key) return
         const [f] = parseDiff(text)
         if (f) setParsed(prev => new Map(prev).set(filePath(f), f))
       } catch (err) {
@@ -241,22 +250,29 @@ export default function App() {
     [refreshComments]
   )
 
+  // Returns the fresh prompt text so callers (e.g. Copy) can use it without
+  // racing the async state update.
   const onGenerate = () =>
     generatePrompt({ base, head, summary })
-      .then(setPrompt)
-      .catch(err => setError(err.message))
+      .then(text => {
+        setPrompt(text)
+        return text
+      })
+      .catch(err => {
+        setError(err.message)
+        return null
+      })
 
   const onReset = async () => {
-    try {
-      const all = await getComments()
-      await Promise.all(all.map(c => deleteComment(c.id)))
-      setComments([])
-      setReviewed(new Set())
-      setCollapsed(new Set())
-      setSummary('')
-    } catch (err) {
-      setError(err.message)
-    }
+    const all = await getComments().catch(() => [])
+    // allSettled so one failed delete doesn't abort the rest and leave a half-reset.
+    const results = await Promise.allSettled(all.map(c => deleteComment(c.id)))
+    setReviewed(new Set())
+    setCollapsed(new Set())
+    setSummary('')
+    // Re-fetch to reflect what actually remains if any delete failed.
+    await refreshComments().catch(() => setComments([]))
+    if (results.some(r => r.status === 'rejected')) setError('Some comments could not be deleted.')
     setConfirmReset(false)
   }
 
@@ -309,6 +325,8 @@ export default function App() {
           adds: s.adds,
           dels: s.dels,
           oversized: s.oversized,
+          binary: s.binary,
+          type: s.type ?? 'modify', // server type; parsed diff (if loaded) refines paths below
           ...(f && { hunks: f.hunks, type: f.type, oldPath: f.oldPath, newPath: f.newPath })
         }
       }),

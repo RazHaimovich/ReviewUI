@@ -22,7 +22,7 @@ export function lineSide(changes) {
 // lines of surrounding context.
 // Display line number for a change on the given side (null when the line
 // doesn't exist on that side, e.g. a deletion has no new-side number).
-function lineNumberOn(change, side) {
+export function lineNumberOn(change, side) {
   if (side === 'old') {
     if (change.type === 'normal') return change.oldLineNumber
     if (change.isDelete) return change.lineNumber

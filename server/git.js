@@ -63,37 +63,74 @@ function pathArgs({ file, exclude }) {
 export async function diff(cwd, opts) {
   const { base, head, commit, mode } = opts
   const paths = pathArgs(opts)
+  // `-M` so the patch's rename detection matches the file list's, whatever the
+  // user's diff.renames config is.
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {
       const mb = await mergeBase(cwd, base, head)
-      return git(cwd, 'diff', `${mb}..${commit}`, ...paths)
+      return git(cwd, 'diff', '-M', `${mb}..${commit}`, ...paths)
     }
-    return git(cwd, 'show', '--format=', '--patch', commit, ...paths)
+    return git(cwd, 'show', '-M', '--format=', '--patch', commit, ...paths)
   }
-  return git(cwd, 'diff', `${assertRef(base)}...${assertRef(head)}`, ...paths)
+  return git(cwd, 'diff', '-M', `${assertRef(base)}...${assertRef(head)}`, ...paths)
 }
 
-function parseNumstat(out) {
-  return out
-    .split('\n')
-    .filter(Boolean)
-    .map(line => {
-      const [adds, dels, ...pathParts] = line.split('\t')
-      const binary = adds === '-'
-      return { path: pathParts.join('\t'), adds: binary ? 0 : Number(adds), dels: binary ? 0 : Number(dels), binary }
-    })
+const STATUS_TYPE = { A: 'add', D: 'delete', M: 'modify', T: 'modify' }
+
+// Parse `--numstat -z`: each record is `adds\tdels\t<path>` NUL, and for renames
+// `adds\tdels\t` NUL `<old>` NUL `<new>` NUL. `-z` disables path quoting so the
+// paths match gitdiff-parser's newPath on the client (renames, non-ASCII, spaces).
+function parseNumstatZ(out) {
+  const parts = out.split('\0')
+  const files = []
+  for (let i = 0; i < parts.length; i++) {
+    const m = parts[i].match(/^(\d+|-)\t(\d+|-)\t(.*)$/s)
+    if (!m) continue
+    const [, a, d, rest] = m
+    const path = rest === '' ? parts[(i += 2)] : rest // rename: skip old, take new
+    const binary = a === '-'
+    files.push({ path, adds: binary ? 0 : Number(a), dels: binary ? 0 : Number(d), binary })
+  }
+  return files
 }
 
-// Per-file line counts (git --numstat), used to decide which files are "long".
-export async function diffStat(cwd, { base, head, commit, mode }) {
+// Parse `--name-status -z` into Map(path -> type). Renames/copies key on the dst.
+function parseNameStatusZ(out) {
+  const parts = out.split('\0')
+  const map = new Map()
+  for (let i = 0; i < parts.length; i++) {
+    const status = parts[i]
+    if (!status) continue
+    if (status[0] === 'R' || status[0] === 'C') {
+      map.set(parts[i + 2], 'rename')
+      i += 2
+    } else {
+      map.set(parts[i + 1], STATUS_TYPE[status[0]] ?? 'modify')
+      i += 1
+    }
+  }
+  return map
+}
+
+// Argument list (no patch) for `which` = '--numstat' | '--name-status'.
+// `-M` enables rename detection (diff-tree, unlike `git diff`, leaves it off).
+async function statArgs(cwd, { base, head, commit, mode }, which) {
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {
       const mb = await mergeBase(cwd, base, head)
-      return parseNumstat(await git(cwd, 'diff', '--numstat', `${mb}..${commit}`))
+      return ['diff', which, '-M', '-z', `${mb}..${commit}`]
     }
-    return parseNumstat(await git(cwd, 'show', '--numstat', '--no-patch', '--format=', commit))
+    // `git show --numstat --no-patch` suppresses numstat; diff-tree is the right tool.
+    return ['diff-tree', '--no-commit-id', '-r', '-M', '-z', which, commit]
   }
-  return parseNumstat(await git(cwd, 'diff', '--numstat', `${assertRef(base)}...${assertRef(head)}`))
+  return ['diff', which, '-M', '-z', `${assertRef(base)}...${assertRef(head)}`]
+}
+
+// Per-file summary: path, add/del counts, binary flag, and change type.
+export async function diffStat(cwd, opts) {
+  const nums = parseNumstatZ(await git(cwd, ...(await statArgs(cwd, opts, '--numstat'))))
+  const status = parseNameStatusZ(await git(cwd, ...(await statArgs(cwd, opts, '--name-status'))))
+  return nums.map(f => ({ ...f, type: status.get(f.path) ?? 'modify' }))
 }
