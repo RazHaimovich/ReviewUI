@@ -6,9 +6,13 @@ export function commentsRoutes(store) {
   router.get('/comments', (req, res) => res.json(store.list()));
 
   router.post('/comments', (req, res) => {
-    const { filePath, body, startLine } = req.body ?? {};
-    if (!filePath || !body?.trim() || !Number.isInteger(startLine)) {
-      return res.status(400).json({ error: 'filePath, body and startLine are required' });
+    const { filePath, body, startLine, scope } = req.body ?? {};
+    if (!filePath || !body?.trim()) {
+      return res.status(400).json({ error: 'filePath and body are required' });
+    }
+    // Line comments need a line; whole-file comments (scope: 'file') do not.
+    if (scope !== 'file' && !Number.isInteger(startLine)) {
+      return res.status(400).json({ error: 'startLine is required for line comments' });
     }
     res.status(201).json(store.add(req.body));
   });

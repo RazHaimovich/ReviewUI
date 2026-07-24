@@ -8,6 +8,10 @@ export function buildPrompt({ repoName, base, head, comments, summary }) {
   ];
 
   included.forEach((c, i) => {
+    if (c.scope === 'file') {
+      lines.push(`## ${i + 1}. ${c.filePath} (whole file)`, '', `**Comment:** ${c.body}`, '');
+      return;
+    }
     const range = c.endLine && c.endLine !== c.startLine ? `${c.startLine}-${c.endLine}` : `${c.startLine}`;
     const context = c.commitSha
       ? ` (commented on commit ${c.commitSha.slice(0, 7)}${c.mode === 'cumulative' ? ', cumulative view' : ''})`

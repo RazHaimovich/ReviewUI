@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view';
 import clsx from 'clsx';
-import { CheckIcon, ChevronDownIcon, ChevronRightIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  MessageSquarePlusIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { highlighter, languageFor } from '../lib/highlight.js';
 import { lineRange } from '../lib/lineRange.js';
 
@@ -21,7 +29,7 @@ export function fileStats(file) {
   return { adds, dels };
 }
 
-function CommentForm({ initial = '', onSave, onCancel }) {
+function CommentForm({ initial = '', onSave, onCancel, placeholder = 'Leave a comment…  (drag across line numbers to select a range)' }) {
   const [body, setBody] = useState(initial);
   return (
     <div className="bg-accent-soft/60 p-2.5 font-sans">
@@ -30,7 +38,7 @@ function CommentForm({ initial = '', onSave, onCancel }) {
         rows={3}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Leave a comment…  (drag across line numbers to select a range)"
+        placeholder={placeholder}
         className="w-full resize-y rounded-md border border-line-strong bg-panel p-2 text-sm text-ink placeholder:text-faint"
       />
       <div className="mt-2 flex justify-end gap-2 text-sm">
@@ -55,9 +63,11 @@ function CommentForm({ initial = '', onSave, onCancel }) {
 function CommentCard({ comment, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(false);
   const range =
-    comment.endLine && comment.endLine !== comment.startLine
-      ? `L${comment.startLine}–${comment.endLine}`
-      : `L${comment.startLine}`;
+    comment.scope === 'file'
+      ? 'whole file'
+      : comment.endLine && comment.endLine !== comment.startLine
+        ? `L${comment.startLine}–${comment.endLine}`
+        : `L${comment.startLine}`;
 
   if (editing) {
     return (
@@ -108,9 +118,18 @@ function CommentCard({ comment, onUpdate, onDelete }) {
 export default function FileDiff({ file, viewType, comments, collapsed, onToggleCollapse, onCreate, onUpdate, onDelete }) {
   // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
   const [draft, setDraft] = useState(null);
+  const [fileDraft, setFileDraft] = useState(false);
   const draggingRef = useRef(false);
   const path = filePath(file);
   const { adds, dels } = fileStats(file);
+
+  const fileComments = comments.filter((c) => c.scope === 'file');
+  const lineComments = comments.filter((c) => c.scope !== 'file');
+
+  const saveFileComment = (body) => {
+    onCreate({ filePath: path, scope: 'file', body });
+    setFileDraft(false);
+  };
 
   // End a drag released anywhere (including outside the gutter) → open the form.
   useEffect(() => {
@@ -134,7 +153,7 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
   }, [file, path]);
 
   const byKey = {};
-  for (const c of comments) (byKey[c.changeKey] ??= []).push(c);
+  for (const c of lineComments) (byKey[c.changeKey] ??= []).push(c);
   if (draft?.open) byKey[draft.changeKey] ??= [];
 
   const saveDraft = (body) => {
@@ -235,7 +254,28 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
           {adds > 0 && <span className="text-add">+{adds}</span>}
           {dels > 0 && <span className="text-del">−{dels}</span>}
         </span>
+        <button
+          onClick={() => setFileDraft(true)}
+          title="Comment on file"
+          className="grid size-6 shrink-0 place-items-center rounded text-muted hover:bg-line hover:text-ink"
+        >
+          <MessageSquarePlusIcon className="size-4" />
+        </button>
       </header>
+      {(fileComments.length > 0 || fileDraft) && (
+        <div className="divide-y divide-line border-b border-line">
+          {fileComments.map((c) => (
+            <CommentCard key={c.id} comment={c} onUpdate={onUpdate} onDelete={onDelete} />
+          ))}
+          {fileDraft && (
+            <CommentForm
+              placeholder="Comment on the whole file…"
+              onCancel={() => setFileDraft(false)}
+              onSave={saveFileComment}
+            />
+          )}
+        </div>
+      )}
       {!collapsed && (
         <Diff
           viewType={viewType}

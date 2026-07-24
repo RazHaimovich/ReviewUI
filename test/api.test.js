@@ -199,6 +199,39 @@ test('edit, exclude and summary shape the prompt', async () => {
   await fetch(`${base}/api/comments/${b.id}`, { method: 'DELETE' });
 });
 
+test('a whole-file comment needs no line and renders as (whole file) in the prompt', async () => {
+  const post = (payload) =>
+    fetch(`${base}/api/comments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+  // clear any existing comments
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' });
+  }
+
+  // file-scoped comment: no startLine required
+  const created = await post({ filePath: 'hello.js', scope: 'file', body: 'This module needs tests' });
+  assert.equal(created.status, 201);
+
+  // a line comment still requires a line
+  assert.equal((await post({ filePath: 'hello.js', body: 'no line' })).status, 400);
+
+  const prompt = await (await fetch(`${base}/api/prompt`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ base: 'main', head: 'feature' }),
+  })).text();
+  assert.match(prompt, /## 1\. hello\.js \(whole file\)/);
+  assert.match(prompt, /This module needs tests/);
+
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' });
+  }
+});
+
 test('GET /api/diff with an unknown branch returns a 500 with an error message', async () => {
   const res = await fetch(`${base}/api/diff?base=nope&head=feature`);
   assert.equal(res.status, 500);
