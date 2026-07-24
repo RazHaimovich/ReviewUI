@@ -7,6 +7,7 @@ import {
   Columns2Icon,
   GitCompareIcon,
   MoonIcon,
+  RotateCcwIcon,
   Rows3Icon,
   SparklesIcon,
   SunIcon,
@@ -22,6 +23,7 @@ import {
   generatePrompt,
 } from '../lib/api.js';
 import CommitBar from './CommitBar.jsx';
+import ConfirmModal from './ConfirmModal.jsx';
 import FileDiff, { filePath, fileStats } from './FileDiff.jsx';
 import FileTree from './FileTree.jsx';
 import PromptModal from './PromptModal.jsx';
@@ -85,6 +87,7 @@ export default function App() {
   const [reviewed, setReviewed] = useState(() => new Set());
   const [prompt, setPrompt] = useState(null);
   const [summary, setSummary] = useState('');
+  const [confirmReset, setConfirmReset] = useState(false);
   const [error, setError] = useState(null);
   const [dark, setDark] = useTheme();
 
@@ -133,6 +136,20 @@ export default function App() {
 
   const onGenerate = () =>
     generatePrompt({ base, head, summary }).then(setPrompt).catch((err) => setError(err.message));
+
+  const onReset = async () => {
+    try {
+      const all = await getComments();
+      await Promise.all(all.map((c) => deleteComment(c.id)));
+      setComments([]);
+      setReviewed(new Set());
+      setCollapsed(new Set());
+      setSummary('');
+    } catch (err) {
+      setError(err.message);
+    }
+    setConfirmReset(false);
+  };
 
   const toggleCollapse = (path) =>
     setCollapsed((prev) => {
@@ -229,6 +246,17 @@ export default function App() {
             </button>
           </Tooltip>
 
+          <Tooltip label={comments.length === 0 && reviewed.size === 0 ? 'Nothing to reset' : ''}>
+            <button
+              title="Reset review"
+              onClick={() => setConfirmReset(true)}
+              disabled={comments.length === 0 && reviewed.size === 0}
+              className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
+            >
+              <RotateCcwIcon className="size-4" />
+            </button>
+          </Tooltip>
+
           <button
             title={dark ? 'Light theme' : 'Dark theme'}
             onClick={() => setDark(!dark)}
@@ -299,6 +327,17 @@ export default function App() {
           onSummaryChange={setSummary}
           onRegenerate={onGenerate}
           onClose={() => setPrompt(null)}
+        />
+      )}
+
+      {confirmReset && (
+        <ConfirmModal
+          title="Reset review?"
+          message="This clears all comments and your viewed progress. It can't be undone."
+          confirmLabel="Reset"
+          danger
+          onConfirm={onReset}
+          onClose={() => setConfirmReset(false)}
         />
       )}
     </div>
