@@ -1,4 +1,5 @@
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import Select from './Select.jsx';
 
 function NavButton({ active, children, ...props }) {
   return (
@@ -19,6 +20,11 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
   const index = commits.findIndex((c) => c.sha === view);
   const selected = index >= 0 ? commits[index] : null;
 
+  const commitOptions = [
+    { value: 'final', label: `All ${commits.length} commits` },
+    ...commits.map((c, i) => ({ value: c.sha, label: `${i + 1}. ${c.shortSha} · ${c.subject}` })),
+  ];
+
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <NavButton active={view === 'final'} onClick={() => onView('final')}>
@@ -32,18 +38,13 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
         >
           <ChevronLeftIcon className="size-3.5" />
         </NavButton>
-        <select
-          className="max-w-[26rem] rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
+        <Select
+          ariaLabel="Select commit"
           value={view}
-          onChange={(e) => onView(e.target.value)}
-        >
-          <option value="final">All {commits.length} commits</option>
-          {commits.map((c, i) => (
-            <option key={c.sha} value={c.sha}>
-              {i + 1}. {c.shortSha} · {c.subject}
-            </option>
-          ))}
-        </select>
+          onChange={onView}
+          options={commitOptions}
+          className="max-w-[26rem] rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
+        />
         <NavButton disabled={index < 0 || index === commits.length - 1} onClick={() => onView(commits[index + 1].sha)}>
           <ChevronRightIcon className="size-3.5" />
         </NavButton>

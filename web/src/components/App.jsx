@@ -24,20 +24,17 @@ import CommitBar from './CommitBar.jsx';
 import FileDiff, { filePath, fileStats } from './FileDiff.jsx';
 import FileTree from './FileTree.jsx';
 import PromptModal from './PromptModal.jsx';
+import Select from './Select.jsx';
 
-function BranchSelect({ value, branches, onChange }) {
+function BranchSelect({ value, branches, onChange, ariaLabel }) {
   return (
-    <select
+    <Select
+      ariaLabel={ariaLabel}
+      value={value}
+      onChange={onChange}
+      options={branches.map((b) => ({ value: b, label: b }))}
       className="rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {branches.map((b) => (
-        <option key={b} value={b}>
-          {b}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 
@@ -176,9 +173,9 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <BranchSelect value={base} branches={repo.branches} onChange={setBase} />
+            <BranchSelect ariaLabel="Base branch" value={base} branches={repo.branches} onChange={setBase} />
             <span className="font-mono text-xs text-faint">→</span>
-            <BranchSelect value={head} branches={repo.branches} onChange={setHead} />
+            <BranchSelect ariaLabel="Compare branch" value={head} branches={repo.branches} onChange={setHead} />
           </div>
 
           <span className="text-xs text-muted tnum">
