@@ -42,16 +42,34 @@ function BranchSelect({ value, branches, onChange }) {
 }
 
 function useTheme() {
+  // Start from an explicit choice if the user made one, else the OS preference.
   const [dark, setDark] = useState(() =>
     localStorage.reviewuiTheme
       ? localStorage.reviewuiTheme === 'dark'
       : window.matchMedia('(prefers-color-scheme: dark)').matches
   );
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
-    localStorage.reviewuiTheme = dark ? 'dark' : 'light';
   }, [dark]);
-  return [dark, setDark];
+
+  // Follow live OS changes only while the user hasn't overridden the theme.
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e) => {
+      if (!localStorage.reviewuiTheme) setDark(e.matches);
+    };
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
+
+  // Toggling is an explicit choice: persist it (this is what makes it sticky).
+  const setTheme = (value) => {
+    localStorage.reviewuiTheme = value ? 'dark' : 'light';
+    setDark(value);
+  };
+
+  return [dark, setTheme];
 }
 
 export default function App() {
