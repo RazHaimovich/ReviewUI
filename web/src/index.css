@@ -82,6 +82,16 @@ body {
   background: var(--c-accent-soft);
 }
 
+/* Tailwind v4's reset drops the button pointer cursor — restore it. */
+button:not(:disabled),
+label:has(> input[type='checkbox']),
+summary {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
 .tnum {
   font-variant-numeric: tabular-nums;
 }
