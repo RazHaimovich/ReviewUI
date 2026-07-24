@@ -36,6 +36,12 @@ function buildTree(entries) {
   return root
 }
 
+const FILE_BADGE = {
+  add: { text: 'new', cls: 'bg-add/15 text-add' },
+  rename: { text: 'renamed', cls: 'bg-accent-soft text-accent' },
+  delete: { text: 'deleted', cls: 'bg-del/15 text-del' }
+}
+
 function StatusIcon({ type }) {
   const cls = 'size-3.5 shrink-0'
   if (type === 'add') return <FilePlus2Icon className={clsx(cls, 'text-add')} />
@@ -64,8 +70,10 @@ function FileRow({ file, depth, onToggleReviewed }) {
       >
         <StatusIcon type={file.type} />
         <span className="min-w-0 truncate">{file.name}</span>
-        {file.type === 'add' && (
-          <span className="shrink-0 rounded-full bg-add/15 px-1.5 text-[0.625rem] font-medium text-add">new</span>
+        {FILE_BADGE[file.type] && (
+          <span className={clsx('shrink-0 rounded-full px-1.5 text-[0.625rem] font-medium', FILE_BADGE[file.type].cls)}>
+            {FILE_BADGE[file.type].text}
+          </span>
         )}
         <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[0.6875rem] tnum">
           {file.comments > 0 && (
