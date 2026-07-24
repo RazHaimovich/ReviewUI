@@ -22,6 +22,15 @@
     "cli"
   ],
   "license": "MIT",
+  "author": "Raz Haimovich <raz.haimovich@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RazHaimovich/ReviewUI.git"
+  },
+  "homepage": "https://github.com/RazHaimovich/ReviewUI#readme",
+  "bugs": {
+    "url": "https://github.com/RazHaimovich/ReviewUI/issues"
+  },
   "scripts": {
     "test": "node --test",
     "build": "vite build",
