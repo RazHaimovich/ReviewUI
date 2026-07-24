@@ -10,7 +10,7 @@ import {
   updateComment,
   deleteComment,
   generatePrompt,
-} from './api.js';
+} from '../lib/api.js';
 import CommitBar from './CommitBar.jsx';
 import FileDiff, { filePath, fileStats } from './FileDiff.jsx';
 import FileTree from './FileTree.jsx';

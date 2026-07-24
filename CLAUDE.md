@@ -30,8 +30,10 @@ The server serves the built `web/dist`, not live source — rebuild after UI edi
   binds 41096, opens browser). `app.js` defines the JSON API. `git.js` runs all
   git via `execFile` in the invocation directory. `prompt.js` assembles the
   Claude Code prompt. Comments live in memory for one session.
-- **`web/`** — React + Vite + Tailwind v4 app, built to `web/dist`. Diffs render
-  via `react-diff-view`; syntax highlighting via `refractor`.
+- **`web/`** — React + Vite + Tailwind v4 app, built to `web/dist`. Source under
+  `web/src`: `main.jsx` + `index.css` at the root, React components in
+  `components/`, and non-UI helpers (`api`, `lineRange`, `highlight`) in `lib/`.
+  Diffs render via `react-diff-view`; syntax highlighting via `refractor`.
 - **`test/`** — `node:test` against a throwaway fixture git repo (`fixture.js`)
   plus pure-helper unit tests.
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lineRange } from '../web/src/lineRange.js';
+import { lineRange } from '../web/src/lib/lineRange.js';
 
 // Mimics the shape react-diff-view produces for a hunk's changes.
 const changes = [

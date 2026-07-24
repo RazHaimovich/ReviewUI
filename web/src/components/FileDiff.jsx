@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view';
 import { CheckIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { highlighter, languageFor } from './highlight.js';
-import { lineRange } from './lineRange.js';
+import { highlighter, languageFor } from '../lib/highlight.js';
+import { lineRange } from '../lib/lineRange.js';
 
 export function filePath(file) {
   return file.type === 'delete' ? file.oldPath : file.newPath;
