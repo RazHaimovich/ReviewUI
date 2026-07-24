@@ -1,17 +1,22 @@
-import { useState } from 'react';
-import clsx from 'clsx';
-import { PencilIcon, Trash2Icon } from 'lucide-react';
-import ConfirmModal from './ConfirmModal.jsx';
+import { useState } from 'react'
+import clsx from 'clsx'
+import { PencilIcon, Trash2Icon } from 'lucide-react'
+import ConfirmModal from './ConfirmModal.jsx'
 
-export function CommentForm({ initial = '', onSave, onCancel, placeholder = 'Leave a comment…  (drag across line numbers to select a range)' }) {
-  const [body, setBody] = useState(initial);
+export function CommentForm({
+  initial = '',
+  onSave,
+  onCancel,
+  placeholder = 'Leave a comment…  (drag across line numbers to select a range)'
+}) {
+  const [body, setBody] = useState(initial)
   return (
     <div className="bg-accent-soft/60 p-2.5 font-sans">
       <textarea
         autoFocus
         rows={3}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={e => setBody(e.target.value)}
         placeholder={placeholder}
         className="w-full resize-y rounded-md border border-line-strong bg-panel p-2 text-sm text-ink placeholder:text-faint"
       />
@@ -28,34 +33,34 @@ export function CommentForm({ initial = '', onSave, onCancel, placeholder = 'Lea
         </button>
       </div>
     </div>
-  );
+  )
 }
 
 export function CommentCard({ comment, onUpdate, onDelete }) {
-  const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const range =
     comment.scope === 'file'
       ? 'whole file'
       : comment.endLine && comment.endLine !== comment.startLine
         ? `L${comment.startLine}–${comment.endLine}`
-        : `L${comment.startLine}`;
+        : `L${comment.startLine}`
 
   if (editing) {
     return (
       <CommentForm
         initial={comment.body}
         onCancel={() => setEditing(false)}
-        onSave={(body) => {
-          onUpdate(comment.id, { body });
-          setEditing(false);
+        onSave={body => {
+          onUpdate(comment.id, { body })
+          setEditing(false)
         }}
       />
-    );
+    )
   }
 
-  const excluded = comment.included === false;
-  const iconBtn = 'grid size-6 place-items-center rounded text-muted hover:bg-panel2 hover:text-ink';
+  const excluded = comment.included === false
+  const iconBtn = 'grid size-6 place-items-center rounded text-muted hover:bg-panel2 hover:text-ink'
 
   return (
     <div className="px-3 py-2.5 font-sans text-sm">
@@ -97,12 +102,12 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
           confirmLabel="Delete"
           danger
           onConfirm={() => {
-            onDelete(comment.id);
-            setConfirmDelete(false);
+            onDelete(comment.id)
+            setConfirmDelete(false)
           }}
           onClose={() => setConfirmDelete(false)}
         />
       )}
     </div>
-  );
+  )
 }

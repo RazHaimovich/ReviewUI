@@ -1,16 +1,16 @@
-import { Router } from 'express';
-import * as g from '../git.js';
+import { Router } from 'express'
+import * as g from '../git.js'
 
 export function repoRoutes(repoDir) {
-  const router = Router();
+  const router = Router()
 
   router.get('/repo', async (req, res, next) => {
     try {
-      res.json(await g.repoInfo(repoDir));
+      res.json(await g.repoInfo(repoDir))
     } catch (err) {
-      next(err);
+      next(err)
     }
-  });
+  })
 
-  return router;
+  return router
 }

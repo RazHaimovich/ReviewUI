@@ -1,4 +1,4 @@
-import clsx from 'clsx';
+import clsx from 'clsx'
 
 export default function ConfirmModal({ title, message, confirmLabel = 'Confirm', danger = false, onConfirm, onClose }) {
   return (
@@ -8,7 +8,7 @@ export default function ConfirmModal({ title, message, confirmLabel = 'Confirm',
     >
       <div
         className="w-full max-w-sm overflow-hidden rounded-xl border border-line bg-panel shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <div className="p-4">
           <h2 className="text-sm font-semibold">{title}</h2>
@@ -30,5 +30,5 @@ export default function ConfirmModal({ title, message, confirmLabel = 'Confirm',
         </div>
       </div>
     </div>
-  );
+  )
 }

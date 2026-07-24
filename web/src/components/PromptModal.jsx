@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { CheckIcon, CopyIcon, TerminalIcon, XIcon } from 'lucide-react';
+import { useState } from 'react'
+import { CheckIcon, CopyIcon, TerminalIcon, XIcon } from 'lucide-react'
 
 export default function PromptModal({ text, summary, onSummaryChange, onRegenerate, onClose }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false)
 
   const copy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <div
@@ -17,7 +17,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
     >
       <div
         className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <header className="flex items-center justify-between border-b border-line px-4 py-3">
           <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
           <textarea
             rows={2}
             value={summary}
-            onChange={(e) => onSummaryChange(e.target.value)}
+            onChange={e => onSummaryChange(e.target.value)}
             onBlur={onRegenerate}
             placeholder="Overall summary (optional) — applies to the whole review, e.g. “also add tests”"
             className="w-full resize-y rounded-md border border-line-strong bg-bg p-2 text-sm text-ink placeholder:text-faint"
@@ -62,5 +62,5 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
         </footer>
       </div>
     </div>
-  );
+  )
 }

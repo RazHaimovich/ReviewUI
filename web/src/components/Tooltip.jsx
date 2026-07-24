@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from 'react'
 import {
   autoUpdate,
   flip,
@@ -10,29 +10,29 @@ import {
   useHover,
   useInteractions,
   useRole,
-  FloatingPortal,
-} from '@floating-ui/react';
+  FloatingPortal
+} from '@floating-ui/react'
 
 // Wraps children with a hover/focus tooltip. Pass an empty `label` to render
 // children untouched (no wrapper). Works for enabled and disabled controls;
 // because disabled buttons don't emit pointer events, wrapped controls should
 // carry `disabled:pointer-events-none` so the hover reaches this wrapper.
 export default function Tooltip({ label, children, placement = 'bottom' }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
   const { refs, floatingStyles, context } = useFloating({
     open,
     onOpenChange: setOpen,
     placement,
     whileElementsMounted: autoUpdate,
-    middleware: [offset(6), flip(), shift({ padding: 6 })],
-  });
-  const hover = useHover(context, { move: false });
-  const focus = useFocus(context);
-  const dismiss = useDismiss(context);
-  const role = useRole(context, { role: 'tooltip' });
-  const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus, dismiss, role]);
+    middleware: [offset(6), flip(), shift({ padding: 6 })]
+  })
+  const hover = useHover(context, { move: false })
+  const focus = useFocus(context)
+  const dismiss = useDismiss(context)
+  const role = useRole(context, { role: 'tooltip' })
+  const { getReferenceProps, getFloatingProps } = useInteractions([hover, focus, dismiss, role])
 
-  if (!label) return children;
+  if (!label) return children
 
   return (
     <>
@@ -52,5 +52,5 @@ export default function Tooltip({ label, children, placement = 'bottom' }) {
         </FloatingPortal>
       )}
     </>
-  );
+  )
 }

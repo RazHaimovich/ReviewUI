@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import clsx from 'clsx';
-import { parseDiff } from 'react-diff-view';
+import { useEffect, useState } from 'react'
+import clsx from 'clsx'
+import { parseDiff } from 'react-diff-view'
 import {
   ALargeSmallIcon,
   ChevronsDownUpIcon,
@@ -12,8 +12,8 @@ import {
   RotateCcwIcon,
   Rows3Icon,
   SparklesIcon,
-  SunIcon,
-} from 'lucide-react';
+  SunIcon
+} from 'lucide-react'
 import {
   getRepo,
   getCommits,
@@ -22,16 +22,16 @@ import {
   createComment,
   updateComment,
   deleteComment,
-  generatePrompt,
-} from '../lib/api.js';
-import CommitBar from './CommitBar.jsx';
-import CommentsModal from './CommentsModal.jsx';
-import ConfirmModal from './ConfirmModal.jsx';
-import FileDiff, { filePath, fileStats } from './FileDiff.jsx';
-import FileTree from './FileTree.jsx';
-import PromptModal from './PromptModal.jsx';
-import Select from './Select.jsx';
-import Tooltip from './Tooltip.jsx';
+  generatePrompt
+} from '../lib/api.js'
+import CommitBar from './CommitBar.jsx'
+import CommentsModal from './CommentsModal.jsx'
+import ConfirmModal from './ConfirmModal.jsx'
+import FileDiff, { filePath, fileStats } from './FileDiff.jsx'
+import FileTree from './FileTree.jsx'
+import PromptModal from './PromptModal.jsx'
+import Select from './Select.jsx'
+import Tooltip from './Tooltip.jsx'
 
 function BranchSelect({ value, branches, onChange, ariaLabel }) {
   return (
@@ -39,10 +39,10 @@ function BranchSelect({ value, branches, onChange, ariaLabel }) {
       ariaLabel={ariaLabel}
       value={value}
       onChange={onChange}
-      options={branches.map((b) => ({ value: b, label: b }))}
+      options={branches.map(b => ({ value: b, label: b }))}
       className="rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
     />
-  );
+  )
 }
 
 function useTheme() {
@@ -51,167 +51,172 @@ function useTheme() {
     localStorage.reviewuiTheme
       ? localStorage.reviewuiTheme === 'dark'
       : window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
+  )
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-  }, [dark]);
+    document.documentElement.classList.toggle('dark', dark)
+  }, [dark])
 
   // Follow live OS changes only while the user hasn't overridden the theme.
   useEffect(() => {
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e) => {
-      if (!localStorage.reviewuiTheme) setDark(e.matches);
-    };
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, []);
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = e => {
+      if (!localStorage.reviewuiTheme) setDark(e.matches)
+    }
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
 
   // Toggling is an explicit choice: persist it (this is what makes it sticky).
-  const setTheme = (value) => {
-    localStorage.reviewuiTheme = value ? 'dark' : 'light';
-    setDark(value);
-  };
+  const setTheme = value => {
+    localStorage.reviewuiTheme = value ? 'dark' : 'light'
+    setDark(value)
+  }
 
-  return [dark, setTheme];
+  return [dark, setTheme]
 }
 
-const FONT_SIZES = { small: '15px', medium: '17px', large: '19px' };
-const FONT_ORDER = ['small', 'medium', 'large'];
+const FONT_SIZES = { small: '15px', medium: '17px', large: '19px' }
+const FONT_ORDER = ['small', 'medium', 'large']
 
 function useFontSize() {
-  const [size, setSize] = useState(() => localStorage.reviewuiFontSize || 'medium');
+  const [size, setSize] = useState(() => localStorage.reviewuiFontSize || 'medium')
   useEffect(() => {
-    document.documentElement.style.fontSize = FONT_SIZES[size] ?? FONT_SIZES.medium;
-    localStorage.reviewuiFontSize = size;
-  }, [size]);
-  const cycle = () => setSize((s) => FONT_ORDER[(FONT_ORDER.indexOf(s) + 1) % FONT_ORDER.length]);
-  return [size, cycle];
+    document.documentElement.style.fontSize = FONT_SIZES[size] ?? FONT_SIZES.medium
+    localStorage.reviewuiFontSize = size
+  }, [size])
+  const cycle = () => setSize(s => FONT_ORDER[(FONT_ORDER.indexOf(s) + 1) % FONT_ORDER.length])
+  return [size, cycle]
 }
 
 export default function App() {
-  const [repo, setRepo] = useState(null);
-  const [base, setBase] = useState(null);
-  const [head, setHead] = useState(null);
-  const [commits, setCommits] = useState([]);
-  const [view, setView] = useState('final'); // 'final' or a commit sha
-  const [mode, setMode] = useState('single');
-  const [viewType, setViewType] = useState('unified');
-  const [files, setFiles] = useState([]);
-  const [comments, setComments] = useState([]);
-  const [collapsed, setCollapsed] = useState(() => new Set());
-  const [reviewed, setReviewed] = useState(() => new Set());
-  const [prompt, setPrompt] = useState(null);
-  const [summary, setSummary] = useState('');
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [error, setError] = useState(null);
-  const [dark, setDark] = useTheme();
-  const [fontSize, cycleFontSize] = useFontSize();
+  const [repo, setRepo] = useState(null)
+  const [base, setBase] = useState(null)
+  const [head, setHead] = useState(null)
+  const [commits, setCommits] = useState([])
+  const [view, setView] = useState('final') // 'final' or a commit sha
+  const [mode, setMode] = useState('single')
+  const [viewType, setViewType] = useState('unified')
+  const [files, setFiles] = useState([])
+  const [comments, setComments] = useState([])
+  const [collapsed, setCollapsed] = useState(() => new Set())
+  const [reviewed, setReviewed] = useState(() => new Set())
+  const [prompt, setPrompt] = useState(null)
+  const [summary, setSummary] = useState('')
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [error, setError] = useState(null)
+  const [dark, setDark] = useTheme()
+  const [fontSize, cycleFontSize] = useFontSize()
 
   useEffect(() => {
     getRepo()
-      .then((info) => {
-        setRepo(info);
-        setBase(info.defaultBase ?? info.branches.find((b) => b !== info.current) ?? info.current);
-        setHead(info.current);
+      .then(info => {
+        setRepo(info)
+        setBase(info.defaultBase ?? info.branches.find(b => b !== info.current) ?? info.current)
+        setHead(info.current)
       })
-      .catch((err) => setError(err.message));
-    getComments().then(setComments).catch(() => {});
-  }, []);
+      .catch(err => setError(err.message))
+    getComments()
+      .then(setComments)
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
-    if (!base || !head) return;
-    setView('final');
-    getCommits({ base, head }).then(setCommits).catch((err) => setError(err.message));
-  }, [base, head]);
+    if (!base || !head) return
+    setView('final')
+    getCommits({ base, head })
+      .then(setCommits)
+      .catch(err => setError(err.message))
+  }, [base, head])
 
   useEffect(() => {
-    if (!base || !head) return;
-    const params = { base, head };
-    if (view !== 'final') Object.assign(params, { commit: view, mode });
+    if (!base || !head) return
+    const params = { base, head }
+    if (view !== 'final') Object.assign(params, { commit: view, mode })
     getDiff(params)
-      .then((text) => {
-        setFiles(text.trim() ? parseDiff(text) : []);
-        setError(null);
+      .then(text => {
+        setFiles(text.trim() ? parseDiff(text) : [])
+        setError(null)
       })
-      .catch((err) => setError(err.message));
-  }, [base, head, view, mode]);
+      .catch(err => setError(err.message))
+  }, [base, head, view, mode])
 
-  const refreshComments = () => getComments().then(setComments);
-  const onCreateComment = (comment) =>
+  const refreshComments = () => getComments().then(setComments)
+  const onCreateComment = comment =>
     createComment({
       ...comment,
       commitSha: view === 'final' ? null : view,
-      mode: view === 'final' ? null : mode,
+      mode: view === 'final' ? null : mode
     })
       .then(refreshComments)
-      .catch((err) => setError(err.message));
+      .catch(err => setError(err.message))
   const onUpdateComment = (id, patch) =>
-    updateComment(id, patch).then(refreshComments).catch((err) => setError(err.message));
-  const onDeleteComment = (id) =>
-    deleteComment(id).then(refreshComments).catch((err) => setError(err.message));
+    updateComment(id, patch)
+      .then(refreshComments)
+      .catch(err => setError(err.message))
+  const onDeleteComment = id =>
+    deleteComment(id)
+      .then(refreshComments)
+      .catch(err => setError(err.message))
 
   const onGenerate = () =>
-    generatePrompt({ base, head, summary }).then(setPrompt).catch((err) => setError(err.message));
+    generatePrompt({ base, head, summary })
+      .then(setPrompt)
+      .catch(err => setError(err.message))
 
   const onReset = async () => {
     try {
-      const all = await getComments();
-      await Promise.all(all.map((c) => deleteComment(c.id)));
-      setComments([]);
-      setReviewed(new Set());
-      setCollapsed(new Set());
-      setSummary('');
+      const all = await getComments()
+      await Promise.all(all.map(c => deleteComment(c.id)))
+      setComments([])
+      setReviewed(new Set())
+      setCollapsed(new Set())
+      setSummary('')
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     }
-    setConfirmReset(false);
-  };
+    setConfirmReset(false)
+  }
 
-  const toggleCollapse = (path) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
-    });
+  const toggleCollapse = path =>
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
 
   // Viewed and collapsed are separate: marking viewed auto-collapses once, but
   // the file can be re-expanded via its chevron while staying viewed.
-  const toggleReviewed = (path) => {
-    const becomingReviewed = !reviewed.has(path);
-    setReviewed((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
-    });
-    if (becomingReviewed) setCollapsed((prev) => new Set(prev).add(path));
-  };
-
-  if (!repo) {
-    return (
-      <p className="p-6 font-mono text-sm text-muted">
-        {error ? `ReviewUI error: ${error}` : 'Loading…'}
-      </p>
-    );
+  const toggleReviewed = path => {
+    const becomingReviewed = !reviewed.has(path)
+    setReviewed(prev => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+    if (becomingReviewed) setCollapsed(prev => new Set(prev).add(path))
   }
 
-  const treeEntries = files.map((file) => ({
+  if (!repo) {
+    return <p className="p-6 font-mono text-sm text-muted">{error ? `ReviewUI error: ${error}` : 'Loading…'}</p>
+  }
+
+  const treeEntries = files.map(file => ({
     path: filePath(file),
     type: file.type,
     ...fileStats(file),
-    comments: comments.filter((c) => c.filePath === filePath(file)).length,
-    reviewed: reviewed.has(filePath(file)),
-  }));
+    comments: comments.filter(c => c.filePath === filePath(file)).length,
+    reviewed: reviewed.has(filePath(file))
+  }))
 
-  const paths = files.map(filePath);
-  const allCollapsed = paths.length > 0 && paths.every((p) => collapsed.has(p));
-  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(paths));
+  const paths = files.map(filePath)
+  const allCollapsed = paths.length > 0 && paths.every(p => collapsed.has(p))
+  const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(paths))
 
-  const iconButton =
-    'grid size-8 place-items-center rounded-md bg-panel2 text-muted hover:bg-line hover:text-ink';
+  const iconButton = 'grid size-8 place-items-center rounded-md bg-panel2 text-muted hover:bg-line hover:text-ink'
 
   return (
     <div className="min-h-screen bg-bg text-ink">
@@ -240,12 +245,15 @@ export default function App() {
           <div className="flex items-center rounded-md bg-panel2 p-0.5">
             {[
               ['unified', Rows3Icon, 'Unified view'],
-              ['split', Columns2Icon, 'Split view'],
+              ['split', Columns2Icon, 'Split view']
             ].map(([type, Icon, label]) => (
               <Tooltip key={type} label={label}>
                 <button
                   onClick={() => setViewType(type)}
-                  className={clsx('grid size-7 place-items-center rounded', viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink')}
+                  className={clsx(
+                    'grid size-7 place-items-center rounded',
+                    viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink'
+                  )}
                 >
                   <Icon className="size-4" />
                 </button>
@@ -253,7 +261,9 @@ export default function App() {
             ))}
           </div>
 
-          <Tooltip label={files.length === 0 ? 'No files to review' : allCollapsed ? 'Expand all files' : 'Collapse all files'}>
+          <Tooltip
+            label={files.length === 0 ? 'No files to review' : allCollapsed ? 'Expand all files' : 'Collapse all files'}
+          >
             <button
               onClick={toggleAll}
               disabled={files.length === 0}
@@ -331,12 +341,12 @@ export default function App() {
           <FileTree entries={treeEntries} onToggleReviewed={toggleReviewed} />
         </nav>
         <div className="min-w-0 flex-1">
-          {files.map((file) => (
+          {files.map(file => (
             <FileDiff
               key={filePath(file)}
               file={file}
               viewType={viewType}
-              comments={comments.filter((c) => c.filePath === filePath(file))}
+              comments={comments.filter(c => c.filePath === filePath(file))}
               collapsed={collapsed.has(filePath(file))}
               onToggleCollapse={() => toggleCollapse(filePath(file))}
               reviewed={reviewed.has(filePath(file))}
@@ -371,8 +381,8 @@ export default function App() {
           onUpdate={onUpdateComment}
           onDelete={onDeleteComment}
           onReset={() => {
-            setShowComments(false);
-            setConfirmReset(true);
+            setShowComments(false)
+            setConfirmReset(true)
           }}
           onClose={() => setShowComments(false)}
         />
@@ -389,5 +399,5 @@ export default function App() {
         />
       )}
     </div>
-  );
+  )
 }
