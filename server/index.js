@@ -3,9 +3,12 @@ import { spawn } from 'node:child_process'
 import { createApp } from './app.js'
 import { git, isGitRepo } from './git.js'
 
-// REVIEWUI_PORT overrides the starting port (kept in sync with the Vite dev proxy).
+// REVIEWUI_PORT pins an exact port (kept in sync with the Vite dev proxy). When
+// pinned we bind that port only and fail if taken, so the port never drifts away
+// from the proxy. Unpinned (the npx default) auto-increments from 41096.
+const PINNED = Boolean(process.env.REVIEWUI_PORT)
 const BASE_PORT = Number(process.env.REVIEWUI_PORT) || 41096
-const MAX_ATTEMPTS = 20
+const MAX_ATTEMPTS = PINNED ? 0 : 20
 const cwd = process.cwd()
 
 if (!(await isGitRepo(cwd))) {
@@ -24,6 +27,9 @@ function listen(app, port, attemptsLeft) {
   server.on('error', err => {
     if (err.code === 'EADDRINUSE' && attemptsLeft > 0) {
       listen(app, port + 1, attemptsLeft - 1)
+    } else if (err.code === 'EADDRINUSE' && PINNED) {
+      console.error(`reviewui: port ${BASE_PORT} (REVIEWUI_PORT) is in use - free it or pick another port.`)
+      process.exit(1)
     } else if (err.code === 'EADDRINUSE') {
       console.error(
         `reviewui: no free port in ${BASE_PORT}-${BASE_PORT + MAX_ATTEMPTS} - is ReviewUI already running everywhere?`
