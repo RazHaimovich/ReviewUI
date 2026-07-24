@@ -1,27 +1,44 @@
 {
   "name": "reviewui",
   "version": "0.1.0",
-  "private": true,
+  "description": "Review any git branch like a GitHub PR, locally, and hand the comments to Claude Code as a prompt.",
   "type": "module",
   "bin": {
     "reviewui": "server/index.js"
   },
+  "files": [
+    "server",
+    "web/dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "git",
+    "diff",
+    "code-review",
+    "pull-request",
+    "claude-code",
+    "cli"
+  ],
+  "license": "MIT",
   "scripts": {
     "test": "node --test",
     "build": "vite build",
-    "dev:web": "vite"
+    "dev:web": "vite",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "express": "^4.21.0",
-    "lucide-react": "^1.26.0",
-    "react": "^19.2.8",
-    "react-diff-view": "^3.3.3",
-    "react-dom": "^19.2.8",
-    "refractor": "^5.0.0"
+    "express": "^4.21.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "lucide-react": "^1.26.0",
+    "react": "^19.2.8",
+    "react-diff-view": "^3.3.3",
+    "react-dom": "^19.2.8",
+    "refractor": "^5.0.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.1.5"
   }
