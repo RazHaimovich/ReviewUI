@@ -261,7 +261,12 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
         >
           <MessageSquarePlusIcon className="size-4" />
         </button>
-        <label className="flex shrink-0 items-center gap-1 font-sans text-[11px] text-muted">
+        <label
+          className={clsx(
+            'flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 font-sans text-[11px]',
+            reviewed ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:bg-panel'
+          )}
+        >
           <input type="checkbox" checked={!!reviewed} onChange={onToggleReviewed} className="accent-accent" />
           Viewed
         </label>
