@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { parseDiff } from 'react-diff-view'
 import {
   ALargeSmallIcon,
+  ArrowRightIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   Columns2Icon,
@@ -231,7 +232,7 @@ export default function App() {
 
           <div className="flex items-center gap-1.5">
             <BranchSelect ariaLabel="Base branch" value={base} branches={repo.branches} onChange={setBase} />
-            <span className="font-mono text-xs text-faint">→</span>
+            <ArrowRightIcon className="size-4 shrink-0 text-muted" />
             <BranchSelect ariaLabel="Compare branch" value={head} branches={repo.branches} onChange={setHead} />
           </div>
 
