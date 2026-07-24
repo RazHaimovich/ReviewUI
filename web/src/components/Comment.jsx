@@ -58,7 +58,7 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
   const iconBtn = 'grid size-6 place-items-center rounded text-muted hover:bg-panel2 hover:text-ink';
 
   return (
-    <div className="bg-panel2 px-3 py-2.5 font-sans text-sm">
+    <div className="px-3 py-2.5 font-sans text-sm">
       <div className="mb-1.5 flex items-center gap-2">
         <span className="font-mono text-[11px] tracking-wide text-accent tnum">{range}</span>
         {comment.commitSha && (

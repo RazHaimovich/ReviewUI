@@ -283,12 +283,12 @@ export default function App() {
             <button
               onClick={onGenerate}
               disabled={comments.length === 0}
-              className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-40"
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-b from-accent to-accent-hover px-4 py-2 text-sm font-semibold text-on-accent shadow-sm ring-1 ring-inset ring-white/15 transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
             >
               <SparklesIcon className="size-4" />
               Generate prompt
               {comments.length > 0 && (
-                <span className="rounded bg-black/15 px-1.5 text-xs tnum">{comments.length}</span>
+                <span className="rounded bg-black/20 px-1.5 text-xs tnum">{comments.length}</span>
               )}
             </button>
           </Tooltip>
@@ -349,6 +349,10 @@ export default function App() {
           comments={comments}
           onUpdate={onUpdateComment}
           onDelete={onDeleteComment}
+          onReset={() => {
+            setShowComments(false);
+            setConfirmReset(true);
+          }}
           onClose={() => setShowComments(false)}
         />
       )}

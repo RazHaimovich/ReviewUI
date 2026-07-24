@@ -20,10 +20,36 @@ export function lineSide(changes) {
 // Given a hunk's changes and a selected index range (in either order),
 // return { side, startLine, endLine, snippet } where snippet includes a few
 // lines of surrounding context.
+// Display line number for a change on the given side (null when the line
+// doesn't exist on that side, e.g. a deletion has no new-side number).
+function lineNumberOn(change, side) {
+  if (side === 'old') {
+    if (change.type === 'normal') return change.oldLineNumber;
+    if (change.isDelete) return change.lineNumber;
+    return null;
+  }
+  if (change.type === 'normal') return change.newLineNumber;
+  if (change.isInsert) return change.lineNumber;
+  return null;
+}
+
 export function lineRange(changes, startIndex, endIndex) {
   const lo = Math.min(startIndex, endIndex);
   const hi = Math.max(startIndex, endIndex);
+  const from = Math.max(0, lo - 2);
   const selected = changes.slice(lo, hi + 1);
-  const context = changes.slice(Math.max(0, lo - 2), hi + 3);
-  return { ...lineSide(selected), snippet: context.map(diffLine).join('\n') };
+  const context = changes.slice(from, hi + 3);
+  const { side, startLine, endLine } = lineSide(selected);
+  // `lines` carries a gutter number + content per context line for display;
+  // selStart/selCount mark which of them are the selected (commented) lines.
+  const lines = context.map((c) => ({ num: lineNumberOn(c, side), content: diffLine(c) }));
+  return {
+    side,
+    startLine,
+    endLine,
+    snippet: context.map(diffLine).join('\n'),
+    lines,
+    selStart: lo - from,
+    selCount: hi - lo + 1,
+  };
 }

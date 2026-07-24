@@ -77,7 +77,7 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
   const widgets = Object.fromEntries(
     Object.entries(byKey).map(([key, list]) => [
       key,
-      <div className="divide-y divide-line border-y border-line">
+      <div className="divide-y divide-line border-y border-line bg-panel2">
         {list.map((c) => (
           <CommentCard key={c.id} comment={c} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
@@ -129,6 +129,23 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
   const selectedChanges = draft
     ? draft.hunk.changes.slice(draft.startIndex, draft.endIndex + 1).map(getChangeKey)
     : [];
+
+  // Highlight every line within a comment's range (not just its anchor line).
+  const commentRanges = lineComments.map((c) => ({ side: c.side, start: c.startLine, end: c.endLine ?? c.startLine }));
+  const lineNumberOn = (ch, side) => {
+    if (!ch) return null;
+    if (side === 'old') return ch.type === 'normal' ? ch.oldLineNumber : ch.isDelete ? ch.lineNumber : null;
+    return ch.type === 'normal' ? ch.newLineNumber : ch.isInsert ? ch.lineNumber : null;
+  };
+  const generateLineClassName = ({ changes }) =>
+    changes.some((ch) =>
+      commentRanges.some((r) => {
+        const n = lineNumberOn(ch, r.side);
+        return n != null && n >= r.start && n <= r.end;
+      })
+    )
+      ? 'line-has-comment'
+      : undefined;
 
   const badge =
     file.type === 'add'
@@ -182,7 +199,7 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
         </label>
       </header>
       {(fileComments.length > 0 || fileDraft) && (
-        <div className="divide-y divide-line border-b border-line">
+        <div className="divide-y divide-line border-b border-line bg-panel2">
           {fileComments.map((c) => (
             <CommentCard key={c.id} comment={c} onUpdate={onUpdate} onDelete={onDelete} />
           ))}
@@ -204,6 +221,7 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
           gutterEvents={gutterEvents}
           renderGutter={renderGutter}
           selectedChanges={selectedChanges}
+          generateLineClassName={generateLineClassName}
           tokens={tokens}
         >
           {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
