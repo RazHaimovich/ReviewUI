@@ -164,7 +164,7 @@ function FileDiff({
 
   return (
     <section id={path} className="mb-4 scroll-mt-28 rounded-lg border border-line bg-panel">
-      <header className="sticky top-[6.1rem] z-[5] flex items-center gap-2 rounded-t-lg border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
+      <header className="sticky top-[6.1rem] z-5 flex items-center gap-2 rounded-t-lg border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
         <Tooltip label={collapsed ? 'Expand file' : 'Collapse file'}>
           <button
             onClick={() => onToggleCollapse(path)}
@@ -184,7 +184,7 @@ function FileDiff({
             </span>
           )}
           {adds > 0 && <span className="text-add">+{adds}</span>}
-          {dels > 0 && <span className="text-del">−{dels}</span>}
+          {dels > 0 && <span className="text-del">-{dels}</span>}
         </span>
         <Tooltip label="Comment on file">
           <button
