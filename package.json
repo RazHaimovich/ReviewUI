@@ -35,7 +35,7 @@
     "test": "node --test",
     "build": "vite build",
     "dev:web": "vite",
-    "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
