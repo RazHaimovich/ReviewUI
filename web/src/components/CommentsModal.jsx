@@ -4,7 +4,7 @@ import { CommentCard } from './Comment.jsx';
 
 function Snippet({ lines, selStart, selCount }) {
   return (
-    <div className="max-h-52 overflow-auto border-b border-line bg-bg font-mono text-[11px] leading-relaxed">
+    <div className="max-h-52 overflow-auto border-b border-line bg-bg font-mono text-[0.6875rem] leading-relaxed">
       {lines.map((l, i) => {
         const selected = selStart != null && i >= selStart && i < selStart + selCount;
         const sign = l.content[0];
@@ -62,7 +62,7 @@ export default function CommentsModal({ comments, onUpdate, onDelete, onReset, o
           {comments.length === 0 && <p className="py-8 text-center text-sm text-muted">No comments yet.</p>}
           {comments.map((c) => (
             <div key={c.id} className="overflow-hidden rounded-lg border border-line bg-panel">
-              <div className="flex items-center gap-1.5 border-b border-line bg-panel2 px-3 py-1.5 font-mono text-[11px] text-muted">
+              <div className="flex items-center gap-1.5 border-b border-line bg-panel2 px-3 py-1.5 font-mono text-[0.6875rem] text-muted">
                 <FileIcon className="size-3 shrink-0" />
                 <span className="truncate">{c.filePath}</span>
               </div>
@@ -70,7 +70,7 @@ export default function CommentsModal({ comments, onUpdate, onDelete, onReset, o
                 <Snippet lines={c.lines} selStart={c.selStart} selCount={c.selCount} />
               ) : (
                 c.snippet && (
-                  <pre className="max-h-52 overflow-auto border-b border-line bg-bg px-3 py-2 font-mono text-[11px] text-muted">
+                  <pre className="max-h-52 overflow-auto border-b border-line bg-bg px-3 py-2 font-mono text-[0.6875rem] text-muted">
                     {c.snippet}
                   </pre>
                 )
@@ -89,7 +89,7 @@ export default function CommentsModal({ comments, onUpdate, onDelete, onReset, o
               <Trash2Icon className="size-3.5" />
               Clear all
             </button>
-            <span className="font-mono text-[11px] text-faint">Excluded comments are skipped in the prompt.</span>
+            <span className="font-mono text-[0.6875rem] text-faint">Excluded comments are skipped in the prompt.</span>
           </footer>
         )}
       </div>

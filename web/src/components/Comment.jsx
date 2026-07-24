@@ -60,9 +60,9 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
   return (
     <div className="px-3 py-2.5 font-sans text-sm">
       <div className="mb-1.5 flex items-center gap-2">
-        <span className="font-mono text-[11px] tracking-wide text-accent tnum">{range}</span>
+        <span className="font-mono text-[0.6875rem] tracking-wide text-accent tnum">{range}</span>
         {comment.commitSha && (
-          <span className="rounded bg-panel2 px-1.5 font-mono text-[11px] text-muted">
+          <span className="rounded bg-panel2 px-1.5 font-mono text-[0.6875rem] text-muted">
             @{comment.commitSha.slice(0, 7)}
           </span>
         )}
@@ -70,7 +70,7 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
         <label
           title="Whether this comment is sent in the generated prompt"
           className={clsx(
-            'flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px]',
+            'flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[0.6875rem]',
             excluded ? 'border-line text-muted' : 'border-accent bg-accent-soft text-accent'
           )}
         >

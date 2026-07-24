@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { parseDiff } from 'react-diff-view';
 import {
+  ALargeSmallIcon,
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   Columns2Icon,
@@ -75,6 +76,19 @@ function useTheme() {
   return [dark, setTheme];
 }
 
+const FONT_SIZES = { small: '14px', medium: '16px', large: '18px' };
+const FONT_ORDER = ['small', 'medium', 'large'];
+
+function useFontSize() {
+  const [size, setSize] = useState(() => localStorage.reviewuiFontSize || 'medium');
+  useEffect(() => {
+    document.documentElement.style.fontSize = FONT_SIZES[size] ?? FONT_SIZES.medium;
+    localStorage.reviewuiFontSize = size;
+  }, [size]);
+  const cycle = () => setSize((s) => FONT_ORDER[(FONT_ORDER.indexOf(s) + 1) % FONT_ORDER.length]);
+  return [size, cycle];
+}
+
 export default function App() {
   const [repo, setRepo] = useState(null);
   const [base, setBase] = useState(null);
@@ -93,6 +107,7 @@ export default function App() {
   const [showComments, setShowComments] = useState(false);
   const [error, setError] = useState(null);
   const [dark, setDark] = useTheme();
+  const [fontSize, cycleFontSize] = useFontSize();
 
   useEffect(() => {
     getRepo()
@@ -256,7 +271,7 @@ export default function App() {
             >
               <MessagesSquareIcon className="size-4" />
               {comments.length > 0 && (
-                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-accent text-[10px] text-on-accent tnum">
+                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-accent text-[0.625rem] text-on-accent tnum">
                   {comments.length}
                 </span>
               )}
@@ -270,6 +285,12 @@ export default function App() {
               className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
             >
               <RotateCcwIcon className="size-4" />
+            </button>
+          </Tooltip>
+
+          <Tooltip label={`Font size: ${fontSize}`}>
+            <button onClick={cycleFontSize} className={iconButton}>
+              <ALargeSmallIcon className="size-4" />
             </button>
           </Tooltip>
 

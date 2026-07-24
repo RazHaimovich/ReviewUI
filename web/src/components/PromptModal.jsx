@@ -56,7 +56,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
         <pre className="overflow-auto whitespace-pre-wrap bg-bg p-4 font-mono text-xs leading-relaxed text-ink">
           {text}
         </pre>
-        <footer className="flex items-center gap-1.5 border-t border-line px-4 py-2 font-mono text-[11px] text-faint">
+        <footer className="flex items-center gap-1.5 border-t border-line px-4 py-2 font-mono text-[0.6875rem] text-faint">
           <TerminalIcon className="size-3" />
           Also printed to the terminal running ReviewUI.
         </footer>

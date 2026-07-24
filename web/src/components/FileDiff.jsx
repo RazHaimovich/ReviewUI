@@ -173,7 +173,7 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
         {badge && <span className={clsx('shrink-0', badge.cls)}>{badge.text}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2 tnum">
           {comments.length > 0 && (
-            <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-[11px] text-accent">
+            <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-[0.6875rem] text-accent">
               {comments.length}
             </span>
           )}
@@ -190,7 +190,7 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
         </Tooltip>
         <label
           className={clsx(
-            'flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 font-sans text-[11px]',
+            'flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-0.5 font-sans text-[0.6875rem]',
             reviewed ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:bg-panel'
           )}
         >

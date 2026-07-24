@@ -53,7 +53,7 @@ function FileRow({ file, depth, onToggleReviewed }) {
       >
         <StatusIcon type={file.type} />
         <span className="truncate">{file.name}</span>
-        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[11px] tnum">
+        <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[0.6875rem] tnum">
           {file.comments > 0 && (
             <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-accent">{file.comments}</span>
           )}
