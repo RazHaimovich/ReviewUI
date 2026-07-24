@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import clsx from 'clsx';
 import { ChevronDownIcon, ChevronRightIcon, FilePlus2Icon, FileMinus2Icon, FilePenIcon, FileDiffIcon } from 'lucide-react';
 
 function buildTree(entries) {
@@ -17,10 +18,10 @@ function buildTree(entries) {
 
 function StatusIcon({ type }) {
   const cls = 'size-3.5 shrink-0';
-  if (type === 'add') return <FilePlus2Icon className={`${cls} text-add`} />;
-  if (type === 'delete') return <FileMinus2Icon className={`${cls} text-del`} />;
-  if (type === 'rename') return <FilePenIcon className={`${cls} text-accent`} />;
-  return <FileDiffIcon className={`${cls} text-muted`} />;
+  if (type === 'add') return <FilePlus2Icon className={clsx(cls, 'text-add')} />;
+  if (type === 'delete') return <FileMinus2Icon className={clsx(cls, 'text-del')} />;
+  if (type === 'rename') return <FilePenIcon className={clsx(cls, 'text-accent')} />;
+  return <FileDiffIcon className={clsx(cls, 'text-muted')} />;
 }
 
 function FileRow({ file, depth }) {

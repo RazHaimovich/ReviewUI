@@ -1,14 +1,14 @@
+import clsx from 'clsx';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import Select from './Select.jsx';
 
 function NavButton({ active, children, ...props }) {
   return (
     <button
-      className={`flex items-center gap-0.5 rounded-md px-2 py-1 text-xs disabled:opacity-40 ${
-        active
-          ? 'bg-accent-soft font-medium text-accent'
-          : 'bg-panel2 text-muted hover:text-ink disabled:hover:text-muted'
-      }`}
+      className={clsx(
+        'flex items-center gap-0.5 rounded-md px-2 py-1 text-xs disabled:opacity-40',
+        active ? 'bg-accent-soft font-medium text-accent' : 'bg-panel2 text-muted hover:text-ink disabled:hover:text-muted'
+      )}
       {...props}
     >
       {children}
@@ -60,9 +60,7 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
               <button
                 key={m}
                 onClick={() => onMode(m)}
-                className={`rounded px-2 py-0.5 text-xs ${
-                  mode === m ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink'
-                }`}
+                className={clsx('rounded px-2 py-0.5 text-xs', mode === m ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink')}
               >
                 {label}
               </button>

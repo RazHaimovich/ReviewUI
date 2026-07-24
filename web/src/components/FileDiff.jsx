@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view';
+import clsx from 'clsx';
 import { CheckIcon, ChevronDownIcon, ChevronRightIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { highlighter, languageFor } from '../lib/highlight.js';
 import { lineRange } from '../lib/lineRange.js';
@@ -75,7 +76,7 @@ function CommentCard({ comment, onUpdate, onDelete }) {
   const iconBtn = 'grid size-6 place-items-center rounded text-faint hover:bg-panel2 hover:text-ink';
 
   return (
-    <div className={`bg-accent-soft/50 px-3 py-2.5 font-sans text-sm ${excluded ? 'opacity-45' : ''}`}>
+    <div className={clsx('bg-accent-soft/50 px-3 py-2.5 font-sans text-sm', excluded && 'opacity-45')}>
       <div className="mb-1 flex items-center gap-2">
         <span className="font-mono text-[11px] tracking-wide text-accent tnum">{range}</span>
         {comment.commitSha && (
@@ -87,16 +88,14 @@ function CommentCard({ comment, onUpdate, onDelete }) {
         <button
           title={excluded ? 'Include in prompt' : 'Exclude from prompt'}
           onClick={() => onUpdate(comment.id, { included: excluded })}
-          className={`grid size-6 place-items-center rounded ${
-            excluded ? 'text-faint hover:bg-panel2' : 'text-accent hover:bg-panel2'
-          }`}
+          className={clsx('grid size-6 place-items-center rounded hover:bg-panel2', excluded ? 'text-faint' : 'text-accent')}
         >
           <CheckIcon className="size-3.5" strokeWidth={excluded ? 2 : 3} />
         </button>
         <button title="Edit" onClick={() => setEditing(true)} className={iconBtn}>
           <PencilIcon className="size-3.5" />
         </button>
-        <button title="Delete" onClick={() => onDelete(comment.id)} className={`${iconBtn} hover:text-del`}>
+        <button title="Delete" onClick={() => onDelete(comment.id)} className={clsx(iconBtn, 'hover:text-del')}>
           <Trash2Icon className="size-3.5" />
         </button>
       </div>
@@ -226,7 +225,7 @@ export default function FileDiff({ file, viewType, comments, collapsed, onToggle
         <span className="truncate text-ink">
           {file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : path}
         </span>
-        {badge && <span className={`shrink-0 ${badge.cls}`}>{badge.text}</span>}
+        {badge && <span className={clsx('shrink-0', badge.cls)}>{badge.text}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2 tnum">
           {comments.length > 0 && (
             <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-[11px] text-accent">

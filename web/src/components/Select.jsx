@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import clsx from 'clsx';
 import {
   autoUpdate,
   flip,
@@ -78,7 +79,7 @@ export default function Select({ value, onChange, options, className = '', ariaL
         ref={refs.setReference}
         type="button"
         aria-label={ariaLabel}
-        className={`flex items-center gap-1.5 ${className}`}
+        className={clsx('flex items-center gap-1.5', className)}
         {...getReferenceProps()}
       >
         <span className="truncate">{selected ? selected.label : ''}</span>
@@ -102,9 +103,10 @@ export default function Select({ value, onChange, options, className = '', ariaL
                   role="option"
                   aria-selected={i === selectedIndex}
                   tabIndex={i === activeIndex ? 0 : -1}
-                  className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 font-mono text-xs outline-none ${
+                  className={clsx(
+                    'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 font-mono text-xs outline-none',
                     i === activeIndex ? 'bg-accent-soft text-accent' : 'text-ink'
-                  }`}
+                  )}
                   {...getItemProps({
                     onClick: () => select(i),
                     onKeyDown: (event) => {
@@ -116,7 +118,7 @@ export default function Select({ value, onChange, options, className = '', ariaL
                   })}
                 >
                   <CheckIcon
-                    className={`size-3.5 shrink-0 text-accent ${i === selectedIndex ? 'opacity-100' : 'opacity-0'}`}
+                    className={clsx('size-3.5 shrink-0 text-accent', i === selectedIndex ? 'opacity-100' : 'opacity-0')}
                   />
                   <span className="truncate">{opt.label}</span>
                 </div>

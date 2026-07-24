@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import { parseDiff } from 'react-diff-view';
 import {
   ChevronsDownUpIcon,
@@ -193,9 +194,7 @@ export default function App() {
                 key={type}
                 title={label}
                 onClick={() => setViewType(type)}
-                className={`grid size-7 place-items-center rounded ${
-                  viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink'
-                }`}
+                className={clsx('grid size-7 place-items-center rounded', viewType === type ? 'bg-panel text-ink shadow-sm' : 'text-muted hover:text-ink')}
               >
                 <Icon className="size-4" />
               </button>
@@ -206,7 +205,7 @@ export default function App() {
             title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
             onClick={toggleAll}
             disabled={files.length === 0}
-            className={`${iconButton} disabled:opacity-40`}
+            className={clsx(iconButton, 'disabled:opacity-40')}
           >
             {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
           </button>
