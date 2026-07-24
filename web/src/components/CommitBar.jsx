@@ -1,13 +1,14 @@
 import clsx from 'clsx';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import Select from './Select.jsx';
+import Tooltip from './Tooltip.jsx';
 
 function NavButton({ active, children, ...props }) {
   return (
     <button
       className={clsx(
-        'flex items-center gap-0.5 rounded-md px-2 py-1 text-xs disabled:opacity-40',
-        active ? 'bg-accent-soft font-medium text-accent' : 'bg-panel2 text-muted hover:text-ink disabled:hover:text-muted'
+        'flex items-center gap-0.5 rounded-md px-2 py-1 text-xs disabled:pointer-events-none disabled:opacity-40',
+        active ? 'bg-accent-soft font-medium text-accent' : 'bg-panel2 text-muted hover:text-ink'
       )}
       {...props}
     >
@@ -32,12 +33,14 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
       </NavButton>
 
       <div className="flex items-center gap-1">
-        <NavButton
-          disabled={commits.length === 0 || index === 0}
-          onClick={() => onView(commits[index < 0 ? commits.length - 1 : index - 1].sha)}
-        >
-          <ChevronLeftIcon className="size-3.5" />
-        </NavButton>
+        <Tooltip label={commits.length === 0 || index === 0 ? 'No older commit' : ''}>
+          <NavButton
+            disabled={commits.length === 0 || index === 0}
+            onClick={() => onView(commits[index < 0 ? commits.length - 1 : index - 1].sha)}
+          >
+            <ChevronLeftIcon className="size-3.5" />
+          </NavButton>
+        </Tooltip>
         <Select
           ariaLabel="Select commit"
           value={view}
@@ -45,9 +48,11 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
           options={commitOptions}
           className="max-w-104 rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
         />
-        <NavButton disabled={index < 0 || index === commits.length - 1} onClick={() => onView(commits[index + 1].sha)}>
-          <ChevronRightIcon className="size-3.5" />
-        </NavButton>
+        <Tooltip label={index < 0 || index === commits.length - 1 ? 'No newer commit' : ''}>
+          <NavButton disabled={index < 0 || index === commits.length - 1} onClick={() => onView(commits[index + 1].sha)}>
+            <ChevronRightIcon className="size-3.5" />
+          </NavButton>
+        </Tooltip>
       </div>
 
       {selected && (

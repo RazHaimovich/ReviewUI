@@ -26,6 +26,7 @@ import FileDiff, { filePath, fileStats } from './FileDiff.jsx';
 import FileTree from './FileTree.jsx';
 import PromptModal from './PromptModal.jsx';
 import Select from './Select.jsx';
+import Tooltip from './Tooltip.jsx';
 
 function BranchSelect({ value, branches, onChange, ariaLabel }) {
   return (
@@ -217,14 +218,16 @@ export default function App() {
             ))}
           </div>
 
-          <button
-            title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
-            onClick={toggleAll}
-            disabled={files.length === 0}
-            className={clsx(iconButton, 'disabled:opacity-40')}
-          >
-            {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
-          </button>
+          <Tooltip label={files.length === 0 ? 'No files to review' : ''}>
+            <button
+              title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
+              onClick={toggleAll}
+              disabled={files.length === 0}
+              className={clsx(iconButton, 'disabled:pointer-events-none disabled:opacity-40')}
+            >
+              {allCollapsed ? <ChevronsUpDownIcon className="size-4" /> : <ChevronsDownUpIcon className="size-4" />}
+            </button>
+          </Tooltip>
 
           <button
             title={dark ? 'Light theme' : 'Dark theme'}
@@ -234,17 +237,19 @@ export default function App() {
             {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
           </button>
 
-          <button
-            onClick={onGenerate}
-            disabled={comments.length === 0}
-            className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <SparklesIcon className="size-4" />
-            Generate prompt
-            {comments.length > 0 && (
-              <span className="rounded bg-black/15 px-1.5 text-xs tnum">{comments.length}</span>
-            )}
-          </button>
+          <Tooltip label={comments.length === 0 ? 'Add a comment first' : ''}>
+            <button
+              onClick={onGenerate}
+              disabled={comments.length === 0}
+              className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-40"
+            >
+              <SparklesIcon className="size-4" />
+              Generate prompt
+              {comments.length > 0 && (
+                <span className="rounded bg-black/15 px-1.5 text-xs tnum">{comments.length}</span>
+              )}
+            </button>
+          </Tooltip>
         </div>
         <div className="border-t border-line px-4 py-2">
           <CommitBar commits={commits} view={view} mode={mode} onView={setView} onMode={setMode} />
