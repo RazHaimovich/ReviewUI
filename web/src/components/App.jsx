@@ -474,7 +474,7 @@ export default function App() {
             <button
               onClick={onGenerate}
               disabled={comments.length === 0}
-              className="flex items-center gap-2 rounded-lg bg-gradient-to-b from-accent to-accent-hover px-4 py-2 text-sm font-semibold text-on-accent shadow-sm ring-1 ring-inset ring-white/15 transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
+              className="flex items-center gap-2 rounded-lg bg-linear-to-b from-accent to-accent-hover px-4 py-2 text-sm font-semibold text-on-accent shadow-sm ring-1 ring-inset ring-white/15 transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-40"
             >
               <SparklesIcon className="size-4" />
               Generate prompt

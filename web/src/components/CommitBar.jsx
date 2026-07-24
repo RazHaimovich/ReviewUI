@@ -26,6 +26,13 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
     ...commits.map((c, i) => ({ value: c.sha, label: `${i + 1}. ${c.shortSha} · ${c.subject}` }))
   ]
 
+  const date = new Date(selected.date)
+  const formattedDate = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0')
+  ].join('-')
+
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <NavButton active={view === 'final'} onClick={() => onView('final')}>
@@ -78,7 +85,7 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
             ))}
           </span>
           <span className="truncate font-mono text-xs text-faint">
-            {selected.author} · {new Date(selected.date).toLocaleDateString()}
+            {selected.author} · {formattedDate}
           </span>
         </>
       )}

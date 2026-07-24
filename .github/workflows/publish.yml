@@ -2,7 +2,7 @@ name: Publish to npm
 
 # Runs on every push to main.
 # Publishes only when package.json contains a version that doesn't exist on npm.
-# After publishing, creates a Git tag for that version.
+# After publishing, creates a Git tag and GitHub Release for that version.
 on:
   push:
     branches:
@@ -55,14 +55,17 @@ jobs:
 
           if [ -n "$PUBLISHED" ]; then
             echo "$NAME@$VERSION is already published - skipping publish."
+            echo "published=false" >> "$GITHUB_OUTPUT"
           else
             echo "Publishing $NAME@$VERSION..."
             npm publish --access public
+            echo "published=true" >> "$GITHUB_OUTPUT"
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create version tag
+        if: steps.publish.outputs.published == 'true'
         env:
           VERSION: ${{ steps.publish.outputs.version }}
         run: |
@@ -72,4 +75,19 @@ jobs:
             echo "Creating tag $VERSION..."
             git tag "$VERSION"
             git push origin "$VERSION"
+          fi
+
+      - name: Create GitHub Release
+        if: steps.publish.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.publish.outputs.version }}
+        run: |
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Release $VERSION already exists - skipping."
+          else
+            echo "Creating GitHub Release $VERSION..."
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --generate-notes
           fi
