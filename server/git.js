@@ -4,6 +4,16 @@ import path from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
+// Refuse ref-looking input that could be parsed as a git flag (e.g. --output=...).
+export function assertRef(ref) {
+  if (typeof ref !== 'string' || ref === '' || ref.startsWith('-')) {
+    const err = new Error(`invalid ref: ${JSON.stringify(ref)}`);
+    err.status = 400;
+    throw err;
+  }
+  return ref;
+}
+
 export async function git(cwd, ...args) {
   const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 64 * 1024 * 1024 });
   return stdout;
@@ -27,5 +37,5 @@ export async function repoInfo(cwd) {
 }
 
 export async function diff(cwd, { base, head }) {
-  return git(cwd, 'diff', `${base}...${head}`);
+  return git(cwd, 'diff', `${assertRef(base)}...${assertRef(head)}`);
 }

@@ -11,9 +11,10 @@ if (!(await isGitRepo(repoDir))) {
   process.exit(1);
 }
 
-const server = createApp(repoDir).listen(PORT, () => {
+const server = createApp(repoDir).listen(PORT, '127.0.0.1', () => {
   const url = `http://localhost:${PORT}`;
   console.log(`ReviewUI running at ${url} (Ctrl+C to quit)`);
+  if (process.env.REVIEWUI_NO_OPEN) return;
   const [cmd, args] =
     process.platform === 'darwin' ? ['open', [url]]
     : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
