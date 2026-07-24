@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view';
-import { Check, Pencil, Trash2 } from 'lucide-react';
+import { CheckIcon, PencilIcon, Trash2Icon } from 'lucide-react';
 import { highlighter, languageFor } from './highlight.js';
 
 export function filePath(file) {
@@ -106,13 +106,13 @@ function CommentCard({ comment, onUpdate, onDelete }) {
             excluded ? 'text-faint hover:bg-panel2' : 'text-accent hover:bg-panel2'
           }`}
         >
-          <Check className="size-3.5" strokeWidth={excluded ? 2 : 3} />
+          <CheckIcon className="size-3.5" strokeWidth={excluded ? 2 : 3} />
         </button>
         <button title="Edit" onClick={() => setEditing(true)} className={iconBtn}>
-          <Pencil className="size-3.5" />
+          <PencilIcon className="size-3.5" />
         </button>
         <button title="Delete" onClick={() => onDelete(comment.id)} className={`${iconBtn} hover:text-del`}>
-          <Trash2 className="size-3.5" />
+          <Trash2Icon className="size-3.5" />
         </button>
       </div>
       <p className="whitespace-pre-wrap text-ink">{comment.body}</p>

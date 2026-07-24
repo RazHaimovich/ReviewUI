@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, FilePlus2, FileMinus2, FilePen, FileDiff as FileDiffIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronRightIcon, FilePlus2Icon, FileMinus2Icon, FilePenIcon, FileDiffIcon } from 'lucide-react';
 
 function buildTree(entries) {
   const root = { dirs: new Map(), files: [] };
@@ -17,9 +17,9 @@ function buildTree(entries) {
 
 function StatusIcon({ type }) {
   const cls = 'size-3.5 shrink-0';
-  if (type === 'add') return <FilePlus2 className={`${cls} text-add`} />;
-  if (type === 'delete') return <FileMinus2 className={`${cls} text-del`} />;
-  if (type === 'rename') return <FilePen className={`${cls} text-accent`} />;
+  if (type === 'add') return <FilePlus2Icon className={`${cls} text-add`} />;
+  if (type === 'delete') return <FileMinus2Icon className={`${cls} text-del`} />;
+  if (type === 'rename') return <FilePenIcon className={`${cls} text-accent`} />;
   return <FileDiffIcon className={`${cls} text-muted`} />;
 }
 
@@ -48,7 +48,7 @@ function FileRow({ file, depth }) {
 
 function Directory({ name, node, depth }) {
   const [open, setOpen] = useState(true);
-  const Chevron = open ? ChevronDown : ChevronRight;
+  const Chevron = open ? ChevronDownIcon : ChevronRightIcon;
   return (
     <div>
       <button

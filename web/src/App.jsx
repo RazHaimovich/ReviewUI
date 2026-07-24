@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { parseDiff } from 'react-diff-view';
-import { Columns2, GitCompare, Moon, Rows3, Sparkles, Sun } from 'lucide-react';
+import { Columns2Icon, GitCompareIcon, MoonIcon, Rows3Icon, SparklesIcon, SunIcon } from 'lucide-react';
 import {
   getRepo,
   getCommits,
@@ -130,7 +130,7 @@ export default function App() {
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
           <div className="flex items-center gap-2">
             <span className="grid size-6 place-items-center rounded-md bg-accent text-on-accent">
-              <GitCompare className="size-3.5" strokeWidth={2.5} />
+              <GitCompareIcon className="size-3.5" strokeWidth={2.5} />
             </span>
             <h1 className="text-sm font-semibold tracking-tight">{repo.name}</h1>
           </div>
@@ -149,8 +149,8 @@ export default function App() {
 
           <div className="flex items-center rounded-md bg-panel2 p-0.5">
             {[
-              ['unified', Rows3, 'Unified view'],
-              ['split', Columns2, 'Split view'],
+              ['unified', Rows3Icon, 'Unified view'],
+              ['split', Columns2Icon, 'Split view'],
             ].map(([type, Icon, label]) => (
               <button
                 key={type}
@@ -170,7 +170,7 @@ export default function App() {
             onClick={() => setDark(!dark)}
             className={iconButton}
           >
-            {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            {dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
           </button>
 
           <button
@@ -178,7 +178,7 @@ export default function App() {
             disabled={comments.length === 0}
             className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <Sparkles className="size-4" />
+            <SparklesIcon className="size-4" />
             Generate prompt
             {comments.length > 0 && (
               <span className="rounded bg-black/15 px-1.5 text-xs tnum">{comments.length}</span>
