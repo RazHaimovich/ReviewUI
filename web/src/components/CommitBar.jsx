@@ -43,7 +43,7 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
           value={view}
           onChange={onView}
           options={commitOptions}
-          className="max-w-[26rem] rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
+          className="max-w-104 rounded-md bg-panel2 px-2 py-1 font-mono text-xs text-ink hover:bg-line"
         />
         <NavButton disabled={index < 0 || index === commits.length - 1} onClick={() => onView(commits[index + 1].sha)}>
           <ChevronRightIcon className="size-3.5" />
