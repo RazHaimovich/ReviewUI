@@ -6,6 +6,7 @@ import {
   ChevronsUpDownIcon,
   Columns2Icon,
   GitCompareIcon,
+  MessagesSquareIcon,
   MoonIcon,
   RotateCcwIcon,
   Rows3Icon,
@@ -23,6 +24,7 @@ import {
   generatePrompt,
 } from '../lib/api.js';
 import CommitBar from './CommitBar.jsx';
+import CommentsModal from './CommentsModal.jsx';
 import ConfirmModal from './ConfirmModal.jsx';
 import FileDiff, { filePath, fileStats } from './FileDiff.jsx';
 import FileTree from './FileTree.jsx';
@@ -88,6 +90,7 @@ export default function App() {
   const [prompt, setPrompt] = useState(null);
   const [summary, setSummary] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const [error, setError] = useState(null);
   const [dark, setDark] = useTheme();
 
@@ -246,6 +249,22 @@ export default function App() {
             </button>
           </Tooltip>
 
+          <Tooltip label={comments.length === 0 ? 'No comments yet' : ''}>
+            <button
+              title="All comments"
+              onClick={() => setShowComments(true)}
+              disabled={comments.length === 0}
+              className={clsx(iconButton, 'relative disabled:pointer-events-none disabled:opacity-40')}
+            >
+              <MessagesSquareIcon className="size-4" />
+              {comments.length > 0 && (
+                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-accent text-[10px] text-on-accent tnum">
+                  {comments.length}
+                </span>
+              )}
+            </button>
+          </Tooltip>
+
           <Tooltip label={comments.length === 0 && reviewed.size === 0 ? 'Nothing to reset' : ''}>
             <button
               title="Reset review"
@@ -327,6 +346,15 @@ export default function App() {
           onSummaryChange={setSummary}
           onRegenerate={onGenerate}
           onClose={() => setPrompt(null)}
+        />
+      )}
+
+      {showComments && (
+        <CommentsModal
+          comments={comments}
+          onUpdate={onUpdateComment}
+          onDelete={onDeleteComment}
+          onClose={() => setShowComments(false)}
         />
       )}
 
