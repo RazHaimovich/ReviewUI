@@ -11,6 +11,17 @@ import {
   FolderOpenIcon
 } from 'lucide-react'
 
+// All file entries under a directory node (recursively).
+function descendantFiles(node) {
+  return [...node.files, ...[...node.dirs.values()].flatMap(descendantFiles)]
+}
+
+// A folder is "new" when every file under it is a newly added file.
+function isNewFolder(node) {
+  const files = descendantFiles(node)
+  return files.length > 0 && files.every(f => f.type === 'add')
+}
+
 function buildTree(entries) {
   const root = { dirs: new Map(), files: [] }
   for (const entry of entries) {
@@ -52,7 +63,10 @@ function FileRow({ file, depth, onToggleReviewed }) {
         className="flex min-w-0 flex-1 items-center gap-1.5 py-1 font-mono text-xs text-muted hover:text-ink"
       >
         <StatusIcon type={file.type} />
-        <span className="truncate">{file.name}</span>
+        <span className="min-w-0 truncate">{file.name}</span>
+        {file.type === 'add' && (
+          <span className="shrink-0 rounded-full bg-add/15 px-1.5 text-[0.625rem] font-medium text-add">new</span>
+        )}
         <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[0.6875rem] tnum">
           {file.comments > 0 && (
             <span className="grid size-4 place-items-center rounded-full bg-accent-soft text-accent">
@@ -71,6 +85,7 @@ function Directory({ name, node, depth, onToggleReviewed }) {
   const [open, setOpen] = useState(true)
   const Chevron = open ? ChevronDownIcon : ChevronRightIcon
   const Folder = open ? FolderOpenIcon : FolderIcon
+  const isNew = isNewFolder(node)
   return (
     <div>
       <button
@@ -79,8 +94,11 @@ function Directory({ name, node, depth, onToggleReviewed }) {
         className="flex w-full items-center gap-1 rounded-md py-1 pr-2 font-mono text-xs text-muted hover:bg-panel2 hover:text-ink"
       >
         <Chevron className="size-3.5 shrink-0" />
-        <Folder className="size-3.5 shrink-0 text-accent" />
-        <span className="truncate">{name}</span>
+        <Folder className={clsx('size-3.5 shrink-0', isNew ? 'text-add' : 'text-accent')} />
+        <span className="min-w-0 truncate">{name}</span>
+        {isNew && (
+          <span className="ml-1 shrink-0 rounded-full bg-add/15 px-1.5 text-[0.625rem] font-medium text-add">new</span>
+        )}
       </button>
       {open && <TreeLevel node={node} depth={depth + 1} onToggleReviewed={onToggleReviewed} />}
     </div>
