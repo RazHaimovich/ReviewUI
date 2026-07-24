@@ -81,6 +81,66 @@ test('non-local Host headers are rejected (DNS rebinding)', async () => {
   assert.equal(status, 403);
 });
 
+test('comments round-trip into the generated prompt', async () => {
+  const post = (payload) =>
+    fetch(`${base}/api/comments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+  const created = await post({
+    filePath: 'hello.js',
+    side: 'new',
+    startLine: 1,
+    endLine: 1,
+    snippet: '+export const greet = (name) => `hello ${name}`;',
+    body: 'Use a default value for name',
+    commitSha: null,
+  });
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+
+  await post({
+    filePath: 'src/bye.js',
+    side: 'new',
+    startLine: 1,
+    endLine: 1,
+    snippet: '+export const bye = () => "bye";',
+    body: 'Add a test for bye',
+    commitSha: 'abcdef1234567890',
+  });
+
+  const listed = await (await fetch(`${base}/api/comments`)).json();
+  assert.equal(listed.length, 2);
+
+  const promptRes = await fetch(`${base}/api/prompt`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ base: 'main', head: 'feature' }),
+  });
+  assert.equal(promptRes.status, 200);
+  const prompt = await promptRes.text();
+  assert.match(prompt, /## 1\. hello\.js:1/);
+  assert.match(prompt, /Use a default value for name/);
+  assert.match(prompt, /hello \$\{name\}/);
+  assert.match(prompt, /## 2\. src\/bye\.js:1 \(commented on commit abcdef1\)/);
+  assert.match(prompt, /locate the referenced snippet/);
+
+  // delete removes from store and from the next prompt
+  assert.equal((await fetch(`${base}/api/comments/${id}`, { method: 'DELETE' })).status, 200);
+  const after = await (await fetch(`${base}/api/prompt`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ base: 'main', head: 'feature' }),
+  })).text();
+  assert.doesNotMatch(after, /hello\.js:1/);
+  assert.match(after, /## 1\. src\/bye\.js:1/);
+
+  // invalid comment payloads are rejected
+  assert.equal((await post({ body: 'no file' })).status, 400);
+});
+
 test('GET /api/diff with an unknown branch returns a 500 with an error message', async () => {
   const res = await fetch(`${base}/api/diff?base=nope&head=feature`);
   assert.equal(res.status, 500);

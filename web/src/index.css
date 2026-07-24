@@ -5,3 +5,8 @@
   font-size: 12px;
   line-height: 1.6;
 }
+
+.diff-gutter:hover {
+  cursor: pointer;
+  background: #bfdbfe;
+}

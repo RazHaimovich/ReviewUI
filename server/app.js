@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as g from './git.js';
+import { buildPrompt } from './prompt.js';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 
@@ -36,6 +37,41 @@ export function createApp(repoDir) {
   api.get('/diff', async (req, res, next) => {
     try {
       res.type('text/plain').send(await g.diff(repoDir, req.query));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ponytail: in-memory, single-session comment store by design (see PRD)
+  const comments = [];
+  let nextId = 1;
+
+  api.get('/comments', (req, res) => res.json(comments));
+
+  api.post('/comments', (req, res) => {
+    const { filePath, body, startLine } = req.body ?? {};
+    if (!filePath || !body?.trim() || !Number.isInteger(startLine)) {
+      return res.status(400).json({ error: 'filePath, body and startLine are required' });
+    }
+    const comment = { included: true, ...req.body, id: nextId++ };
+    comments.push(comment);
+    res.status(201).json(comment);
+  });
+
+  api.delete('/comments/:id', (req, res) => {
+    const index = comments.findIndex((c) => c.id === Number(req.params.id));
+    if (index === -1) return res.status(404).json({ error: 'no such comment' });
+    comments.splice(index, 1);
+    res.json({ ok: true });
+  });
+
+  api.post('/prompt', async (req, res, next) => {
+    try {
+      const { name } = await g.repoInfo(repoDir);
+      const { base, head, summary } = req.body ?? {};
+      const prompt = buildPrompt({ repoName: name, base, head, comments, summary });
+      console.log(`\n----- ReviewUI prompt -----\n${prompt}\n----- end prompt -----\n`);
+      res.type('text/plain').send(prompt);
     } catch (err) {
       next(err);
     }

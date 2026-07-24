@@ -1,26 +1,9 @@
 import { useEffect, useState } from 'react';
-import { parseDiff, Diff, Hunk } from 'react-diff-view';
-import { getRepo, getCommits, getDiff } from './api.js';
+import { parseDiff } from 'react-diff-view';
+import { getRepo, getCommits, getDiff, getComments, createComment, deleteComment, generatePrompt } from './api.js';
 import CommitBar from './CommitBar.jsx';
-
-function filePath(file) {
-  return file.type === 'delete' ? file.oldPath : file.newPath;
-}
-
-function FileDiff({ file }) {
-  return (
-    <section id={filePath(file)} className="mb-4 rounded-md border border-gray-300 overflow-hidden">
-      <header className="bg-gray-100 border-b border-gray-300 px-3 py-2 font-mono text-xs text-gray-700">
-        {file.type === 'rename' ? `${file.oldPath} → ${file.newPath}` : filePath(file)}
-        {file.type === 'add' && <span className="ml-2 text-green-700">added</span>}
-        {file.type === 'delete' && <span className="ml-2 text-red-700">deleted</span>}
-      </header>
-      <Diff viewType="unified" diffType={file.type} hunks={file.hunks}>
-        {(hunks) => hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)}
-      </Diff>
-    </section>
-  );
-}
+import FileDiff, { filePath } from './FileDiff.jsx';
+import PromptModal from './PromptModal.jsx';
 
 function BranchSelect({ label, value, branches, onChange }) {
   return (
@@ -49,6 +32,8 @@ export default function App() {
   const [view, setView] = useState('final'); // 'final' or a commit sha
   const [mode, setMode] = useState('single');
   const [files, setFiles] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [prompt, setPrompt] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -59,6 +44,7 @@ export default function App() {
         setHead(info.current);
       })
       .catch((err) => setError(err.message));
+    getComments().then(setComments).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -79,6 +65,21 @@ export default function App() {
       .catch((err) => setError(err.message));
   }, [base, head, view, mode]);
 
+  const refreshComments = () => getComments().then(setComments);
+  const onCreateComment = (comment) =>
+    createComment({
+      ...comment,
+      commitSha: view === 'final' ? null : view,
+      mode: view === 'final' ? null : mode,
+    })
+      .then(refreshComments)
+      .catch((err) => setError(err.message));
+  const onDeleteComment = (id) =>
+    deleteComment(id).then(refreshComments).catch((err) => setError(err.message));
+
+  const onGenerate = () =>
+    generatePrompt({ base, head }).then(setPrompt).catch((err) => setError(err.message));
+
   if (!repo) {
     return <p className="p-6 text-gray-500">{error ? `ReviewUI error: ${error}` : 'Loading…'}</p>;
   }
@@ -92,6 +93,14 @@ export default function App() {
           <span className="text-gray-400">…</span>
           <BranchSelect label="compare" value={head} branches={repo.branches} onChange={setHead} />
           <span className="text-sm text-gray-500">{files.length} files changed</span>
+          <span className="grow" />
+          <button
+            onClick={onGenerate}
+            disabled={comments.length === 0}
+            className="rounded bg-green-700 px-3 py-1 text-sm text-white hover:bg-green-800 disabled:opacity-40"
+          >
+            Generate Prompt ({comments.length})
+          </button>
         </div>
         <div className="mt-2">
           <CommitBar commits={commits} view={view} mode={mode} onView={setView} onMode={setMode} />
@@ -100,23 +109,39 @@ export default function App() {
       {error && <p className="px-4 pt-4 text-red-700">ReviewUI error: {error}</p>}
       <main className="flex items-start gap-4 p-4">
         <nav className="sticky top-24 w-64 shrink-0 rounded-md border border-gray-300 bg-white p-2 text-sm">
-          {files.map((file) => (
-            <a
-              key={filePath(file)}
-              href={`#${filePath(file)}`}
-              className="block truncate rounded px-2 py-1 font-mono text-xs text-gray-700 hover:bg-gray-100"
-            >
-              {filePath(file)}
-            </a>
-          ))}
+          {files.map((file) => {
+            const path = filePath(file);
+            const count = comments.filter((c) => c.filePath === path).length;
+            return (
+              <a
+                key={path}
+                href={`#${path}`}
+                className="flex items-center gap-1 truncate rounded px-2 py-1 font-mono text-xs text-gray-700 hover:bg-gray-100"
+              >
+                <span className="truncate">{path}</span>
+                {count > 0 && (
+                  <span className="ml-auto shrink-0 rounded-full bg-amber-200 px-1.5 font-sans text-[10px]">
+                    {count}
+                  </span>
+                )}
+              </a>
+            );
+          })}
           {files.length === 0 && <p className="px-2 py-1 text-gray-500">No changes</p>}
         </nav>
         <div className="min-w-0 flex-1">
           {files.map((file) => (
-            <FileDiff key={filePath(file)} file={file} />
+            <FileDiff
+              key={filePath(file)}
+              file={file}
+              comments={comments.filter((c) => c.filePath === filePath(file))}
+              onCreate={onCreateComment}
+              onDelete={onDeleteComment}
+            />
           ))}
         </div>
       </main>
+      {prompt !== null && <PromptModal text={prompt} onClose={() => setPrompt(null)} />}
     </div>
   );
 }

@@ -10,3 +10,20 @@ export const getCommits = (params) =>
 
 export const getDiff = (params) =>
   fetch(`/api/diff?${new URLSearchParams(params)}`).then(ok).then((r) => r.text());
+
+const json = { 'content-type': 'application/json' };
+
+export const getComments = () => fetch('/api/comments').then(ok).then((r) => r.json());
+
+export const createComment = (comment) =>
+  fetch('/api/comments', { method: 'POST', headers: json, body: JSON.stringify(comment) })
+    .then(ok)
+    .then((r) => r.json());
+
+export const deleteComment = (id) =>
+  fetch(`/api/comments/${id}`, { method: 'DELETE' }).then(ok);
+
+export const generatePrompt = (payload) =>
+  fetch('/api/prompt', { method: 'POST', headers: json, body: JSON.stringify(payload) })
+    .then(ok)
+    .then((r) => r.text());
