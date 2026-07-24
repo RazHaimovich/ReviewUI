@@ -52,14 +52,48 @@ export async function commits(cwd, base, head) {
     })
 }
 
-export async function diff(cwd, { base, head, commit, mode }) {
+// Pathspec that limits a diff to one file, or excludes a set of files.
+// `--` protects paths that could otherwise be parsed as flags.
+function pathArgs({ file, exclude }) {
+  if (file) return ['--', file]
+  if (exclude?.length) return ['--', '.', ...exclude.map(p => `:(exclude)${p}`)]
+  return []
+}
+
+export async function diff(cwd, opts) {
+  const { base, head, commit, mode } = opts
+  const paths = pathArgs(opts)
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {
       const mb = await mergeBase(cwd, base, head)
-      return git(cwd, 'diff', `${mb}..${commit}`)
+      return git(cwd, 'diff', `${mb}..${commit}`, ...paths)
     }
-    return git(cwd, 'show', '--format=', '--patch', commit)
+    return git(cwd, 'show', '--format=', '--patch', commit, ...paths)
   }
-  return git(cwd, 'diff', `${assertRef(base)}...${assertRef(head)}`)
+  return git(cwd, 'diff', `${assertRef(base)}...${assertRef(head)}`, ...paths)
+}
+
+function parseNumstat(out) {
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .map(line => {
+      const [adds, dels, ...pathParts] = line.split('\t')
+      const binary = adds === '-'
+      return { path: pathParts.join('\t'), adds: binary ? 0 : Number(adds), dels: binary ? 0 : Number(dels), binary }
+    })
+}
+
+// Per-file line counts (git --numstat), used to decide which files are "long".
+export async function diffStat(cwd, { base, head, commit, mode }) {
+  if (commit) {
+    assertRef(commit)
+    if (mode === 'cumulative') {
+      const mb = await mergeBase(cwd, base, head)
+      return parseNumstat(await git(cwd, 'diff', '--numstat', `${mb}..${commit}`))
+    }
+    return parseNumstat(await git(cwd, 'show', '--numstat', '--no-patch', '--format=', commit))
+  }
+  return parseNumstat(await git(cwd, 'diff', '--numstat', `${assertRef(base)}...${assertRef(head)}`))
 }

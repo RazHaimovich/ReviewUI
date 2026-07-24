@@ -23,7 +23,15 @@ export async function getCommits(params) {
   return res.json()
 }
 
+// Returns { diff, oversized }: the diff text for normal files, plus a list of
+// long files omitted by the server (fetch each with getFileDiff).
 export async function getDiff(params) {
+  const res = await ok(await fetch(`/api/diff?${new URLSearchParams(params)}`))
+  return res.json()
+}
+
+// Diff text for a single file (used to load a long file on demand).
+export async function getFileDiff(params) {
   const res = await ok(await fetch(`/api/diff?${new URLSearchParams(params)}`))
   return res.text()
 }

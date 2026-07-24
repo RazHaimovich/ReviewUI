@@ -20,6 +20,7 @@ import {
   getRepo,
   getCommits,
   getDiff,
+  getFileDiff,
   getComments,
   createComment,
   updateComment,
@@ -134,6 +135,7 @@ export default function App() {
   const [mode, setMode] = useState('single')
   const [viewType, setViewType] = useState('unified')
   const [files, setFiles] = useState([])
+  const [oversized, setOversized] = useState([])
   const [comments, setComments] = useState([])
   const [collapsed, setCollapsed] = useState(() => new Set())
   const [reviewed, setReviewed] = useState(() => new Set())
@@ -167,19 +169,36 @@ export default function App() {
       .catch(err => setError(err.message))
   }, [base, head])
 
-  useEffect(() => {
-    if (!base || !head) return
+  const diffParams = () => {
     const params = { base, head }
     if (view !== 'final') Object.assign(params, { commit: view, mode })
+    return params
+  }
+
+  useEffect(() => {
+    if (!base || !head) return
     setLoadingDiff(true)
-    getDiff(params)
-      .then(text => {
-        setFiles(text.trim() ? parseDiff(text) : [])
+    getDiff(diffParams())
+      .then(({ diff, oversized: long }) => {
+        setFiles(diff.trim() ? parseDiff(diff) : [])
+        setOversized(long ?? [])
         setError(null)
       })
       .catch(err => setError(err.message))
       .finally(() => setLoadingDiff(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, head, view, mode])
+
+  const loadLongFile = async path => {
+    try {
+      const text = await getFileDiff({ ...diffParams(), file: path })
+      const parsed = parseDiff(text)
+      setFiles(prev => [...prev, ...parsed])
+      setOversized(prev => prev.filter(f => f.path !== path))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
 
   const refreshComments = () => getComments().then(setComments)
   const onCreateComment = comment =>
@@ -413,21 +432,42 @@ export default function App() {
               <p className="mt-1 font-mono text-xs text-faint">Pick a different base or compare branch.</p>
             </div>
           ) : (
-            files.map(file => (
-              <FileDiff
-                key={filePath(file)}
-                file={file}
-                viewType={viewType}
-                comments={comments.filter(c => c.filePath === filePath(file))}
-                collapsed={collapsed.has(filePath(file))}
-                onToggleCollapse={() => toggleCollapse(filePath(file))}
-                reviewed={reviewed.has(filePath(file))}
-                onToggleReviewed={() => toggleReviewed(filePath(file))}
-                onCreate={onCreateComment}
-                onUpdate={onUpdateComment}
-                onDelete={onDeleteComment}
-              />
-            ))
+            <>
+              {files.map(file => (
+                <FileDiff
+                  key={filePath(file)}
+                  file={file}
+                  viewType={viewType}
+                  comments={comments.filter(c => c.filePath === filePath(file))}
+                  collapsed={collapsed.has(filePath(file))}
+                  onToggleCollapse={() => toggleCollapse(filePath(file))}
+                  reviewed={reviewed.has(filePath(file))}
+                  onToggleReviewed={() => toggleReviewed(filePath(file))}
+                  onCreate={onCreateComment}
+                  onUpdate={onUpdateComment}
+                  onDelete={onDeleteComment}
+                />
+              ))}
+              {oversized.map(f => (
+                <div
+                  key={f.path}
+                  className="mb-4 flex flex-col items-center gap-1 rounded-lg border border-dashed border-line bg-panel py-10 text-center"
+                >
+                  <span className="font-mono text-xs text-ink">{f.path}</span>
+                  <span className="text-sm text-muted">
+                    Long file — {(f.adds + f.dels).toLocaleString()} changed lines (
+                    <span className="text-add">+{f.adds}</span> / <span className="text-del">−{f.dels}</span>), not
+                    loaded.
+                  </span>
+                  <button
+                    onClick={() => loadLongFile(f.path)}
+                    className="mt-1 rounded-md bg-accent px-3 py-1 text-sm font-medium text-on-accent hover:bg-accent-hover"
+                  >
+                    Load diff
+                  </button>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </main>

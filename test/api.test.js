@@ -19,13 +19,23 @@ test('GET /api/repo reports branches, current branch and default base', async ()
   assert.ok(repo.name)
 })
 
-test('GET /api/diff returns the three-dot diff between base and head', async () => {
+test('GET /api/diff returns the three-dot diff and an oversized list', async () => {
   const res = await fetch(`${base}/api/diff?base=main&head=feature`)
   assert.equal(res.status, 200)
+  const { diff, oversized } = await res.json()
+  assert.equal(diff, fixture.git('diff', 'main...feature'))
+  assert.match(diff, /hello \$\{name\}/)
+  assert.match(diff, /src\/bye\.js/)
+  assert.deepEqual(oversized, []) // fixture files are all small
+})
+
+test('GET /api/diff?file= returns just that file diff', async () => {
+  const res = await fetch(`${base}/api/diff?base=main&head=feature&file=hello.js`)
+  assert.equal(res.status, 200)
   const body = await res.text()
-  assert.equal(body, fixture.git('diff', 'main...feature'))
+  assert.equal(body, fixture.git('diff', 'main...feature', '--', 'hello.js'))
   assert.match(body, /hello \$\{name\}/)
-  assert.match(body, /src\/bye\.js/)
+  assert.doesNotMatch(body, /bye\.js/)
 })
 
 test('GET /api/commits lists branch commits oldest-first', async () => {
@@ -46,21 +56,21 @@ test('single-commit diff matches git show', async () => {
   const commits = await (await fetch(`${base}/api/commits?base=main&head=feature`)).json()
   const first = commits[0].sha
   const res = await fetch(`${base}/api/diff?base=main&head=feature&commit=${first}&mode=single`)
-  const body = await res.text()
-  assert.equal(body, fixture.git('show', '--format=', '--patch', first))
-  assert.match(body, /hello \$\{name\}/)
-  assert.doesNotMatch(body, /bye\.js/)
+  const { diff } = await res.json()
+  assert.equal(diff, fixture.git('show', '--format=', '--patch', first))
+  assert.match(diff, /hello \$\{name\}/)
+  assert.doesNotMatch(diff, /bye\.js/)
 })
 
 test('cumulative diff matches git diff from merge-base', async () => {
   const commits = await (await fetch(`${base}/api/commits?base=main&head=feature`)).json()
   const second = commits[1].sha
   const res = await fetch(`${base}/api/diff?base=main&head=feature&commit=${second}&mode=cumulative`)
-  const body = await res.text()
+  const { diff } = await res.json()
   const mergeBase = fixture.git('merge-base', 'main', 'feature').trim()
-  assert.equal(body, fixture.git('diff', `${mergeBase}..${second}`))
-  assert.match(body, /hello \$\{name\}/)
-  assert.match(body, /bye\.js/)
+  assert.equal(diff, fixture.git('diff', `${mergeBase}..${second}`))
+  assert.match(diff, /hello \$\{name\}/)
+  assert.match(diff, /bye\.js/)
 })
 
 test('refs that look like git flags are rejected with 400', async () => {
