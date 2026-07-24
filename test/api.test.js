@@ -28,6 +28,41 @@ test('GET /api/diff returns the three-dot diff between base and head', async () 
   assert.match(body, /src\/bye\.js/);
 });
 
+test('GET /api/commits lists branch commits oldest-first', async () => {
+  const res = await fetch(`${base}/api/commits?base=main&head=feature`);
+  assert.equal(res.status, 200);
+  const commits = await res.json();
+  assert.deepEqual(
+    commits.map((c) => c.subject),
+    ['greet takes a name', 'add bye']
+  );
+  for (const c of commits) {
+    assert.match(c.sha, /^[0-9a-f]{40}$/);
+    assert.ok(c.shortSha && c.author && c.date);
+  }
+});
+
+test('single-commit diff matches git show', async () => {
+  const commits = await (await fetch(`${base}/api/commits?base=main&head=feature`)).json();
+  const first = commits[0].sha;
+  const res = await fetch(`${base}/api/diff?base=main&head=feature&commit=${first}&mode=single`);
+  const body = await res.text();
+  assert.equal(body, fixture.git('show', '--format=', '--patch', first));
+  assert.match(body, /hello \$\{name\}/);
+  assert.doesNotMatch(body, /bye\.js/);
+});
+
+test('cumulative diff matches git diff from merge-base', async () => {
+  const commits = await (await fetch(`${base}/api/commits?base=main&head=feature`)).json();
+  const second = commits[1].sha;
+  const res = await fetch(`${base}/api/diff?base=main&head=feature&commit=${second}&mode=cumulative`);
+  const body = await res.text();
+  const mergeBase = fixture.git('merge-base', 'main', 'feature').trim();
+  assert.equal(body, fixture.git('diff', `${mergeBase}..${second}`));
+  assert.match(body, /hello \$\{name\}/);
+  assert.match(body, /bye\.js/);
+});
+
 test('refs that look like git flags are rejected with 400', async () => {
   const res = await fetch(`${base}/api/diff?base=--output=/tmp/pwned&head=feature`);
   assert.equal(res.status, 400);

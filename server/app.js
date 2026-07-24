@@ -25,6 +25,14 @@ export function createApp(repoDir) {
     }
   });
 
+  api.get('/commits', async (req, res, next) => {
+    try {
+      res.json(await g.commits(repoDir, req.query.base, req.query.head));
+    } catch (err) {
+      next(err);
+    }
+  });
+
   api.get('/diff', async (req, res, next) => {
     try {
       res.type('text/plain').send(await g.diff(repoDir, req.query));

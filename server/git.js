@@ -36,6 +36,36 @@ export async function repoInfo(cwd) {
   return { name: path.basename(toplevel), branches, current, defaultBase };
 }
 
-export async function diff(cwd, { base, head }) {
+export async function mergeBase(cwd, base, head) {
+  return (await git(cwd, 'merge-base', assertRef(base), assertRef(head))).trim();
+}
+
+export async function commits(cwd, base, head) {
+  const mb = await mergeBase(cwd, base, head);
+  const out = await git(
+    cwd,
+    'log',
+    '--reverse',
+    '--format=%H%x1f%h%x1f%s%x1f%an%x1f%aI',
+    `${mb}..${assertRef(head)}`
+  );
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [sha, shortSha, subject, author, date] = line.split('\x1f');
+      return { sha, shortSha, subject, author, date };
+    });
+}
+
+export async function diff(cwd, { base, head, commit, mode }) {
+  if (commit) {
+    assertRef(commit);
+    if (mode === 'cumulative') {
+      const mb = await mergeBase(cwd, base, head);
+      return git(cwd, 'diff', `${mb}..${commit}`);
+    }
+    return git(cwd, 'show', '--format=', '--patch', commit);
+  }
   return git(cwd, 'diff', `${assertRef(base)}...${assertRef(head)}`);
 }

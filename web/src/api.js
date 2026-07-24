@@ -5,5 +5,8 @@ async function ok(res) {
 
 export const getRepo = () => fetch('/api/repo').then(ok).then((r) => r.json());
 
+export const getCommits = (params) =>
+  fetch(`/api/commits?${new URLSearchParams(params)}`).then(ok).then((r) => r.json());
+
 export const getDiff = (params) =>
   fetch(`/api/diff?${new URLSearchParams(params)}`).then(ok).then((r) => r.text());
