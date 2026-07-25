@@ -14,6 +14,7 @@ import {
   PilcrowIcon,
   RotateCcwIcon,
   Rows3Icon,
+  SearchIcon,
   SparklesIcon,
   SunIcon
 } from 'lucide-react'
@@ -28,6 +29,7 @@ import {
   deleteComment,
   generatePrompt
 } from '../lib/api.js'
+import { filterEntries, isFiltering, NO_FILTER } from '../lib/fileFilter.js'
 import CommitBar from './CommitBar.jsx'
 import CommentsModal from './CommentsModal.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
@@ -155,6 +157,8 @@ export default function App() {
   const [summary, setSummary] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
   const [showComments, setShowComments] = useState(false)
+  const [filter, setFilter] = useState(NO_FILTER)
+  const filterRef = useRef(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
   const [error, setError] = useState(null)
   const [dark, setDark] = useTheme()
@@ -375,6 +379,10 @@ export default function App() {
     reviewed: reviewed.has(e.path)
   }))
 
+  // The sidebar shows the filtered list; the diff column still shows everything.
+  const visibleEntries = filterEntries(treeEntries, filter)
+  const filtering = isFiltering(filter)
+
   const paths = fileList.map(s => s.path)
   const allCollapsed = paths.length > 0 && paths.every(p => collapsed.has(p))
   const toggleAll = () => setCollapsed(allCollapsed ? new Set() : new Set(paths))
@@ -528,8 +536,56 @@ export default function App() {
 
       <main className="mx-auto flex max-w-[1600px] items-start gap-5 p-4">
         <nav className="sticky top-28 max-h-[calc(100vh-8rem)] w-72 shrink-0 overflow-y-auto rounded-lg border border-line bg-panel p-2">
-          <p className="eyebrow px-2 pb-2 pt-1">Changed files</p>
-          {loadingDiff ? <TreeSkeleton /> : <FileTree entries={treeEntries} onToggleReviewed={toggleReviewed} />}
+          <div className="flex items-baseline gap-2 px-2 pt-1">
+            <p className="eyebrow">Changed files</p>
+            {filtering && (
+              <span className="ml-auto font-mono text-[0.6875rem] text-faint tnum">
+                {visibleEntries.length} of {treeEntries.length}
+              </span>
+            )}
+          </div>
+
+          <div className="px-1 pb-2 pt-1.5">
+            <div className="flex items-center gap-1.5 rounded-md bg-panel2 px-2 py-1">
+              <SearchIcon className="size-3.5 shrink-0 text-faint" />
+              <input
+                ref={filterRef}
+                value={filter.query}
+                onChange={e => setFilter(f => ({ ...f, query: e.target.value }))}
+                placeholder="Filter files"
+                aria-label="Filter files"
+                className="w-full bg-transparent font-mono text-xs text-ink outline-none placeholder:text-faint"
+              />
+            </div>
+            <div className="mt-1.5 flex gap-1">
+              {[
+                ['hideViewed', 'Hide viewed'],
+                ['onlyCommented', 'Only commented']
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(f => ({ ...f, [key]: !f[key] }))}
+                  aria-pressed={filter[key]}
+                  className={clsx(
+                    'rounded-md border px-1.5 py-0.5 text-[0.6875rem]',
+                    filter[key] ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:bg-panel2'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loadingDiff ? (
+            <TreeSkeleton />
+          ) : (
+            <FileTree
+              entries={visibleEntries}
+              onToggleReviewed={toggleReviewed}
+              emptyLabel={filtering ? 'No files match' : 'No changes'}
+            />
+          )}
         </nav>
         <div className="min-w-0 flex-1">
           {loadingDiff ? (
