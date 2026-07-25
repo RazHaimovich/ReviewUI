@@ -4,6 +4,10 @@ import path from 'node:path'
 
 const execFileAsync = promisify(execFile)
 
+// Stands in for "the working tree" wherever a commit sha would go. Every code
+// path branches on it before any ref assertion, so it never reaches git.
+export const WORKTREE = 'worktree'
+
 // Refuse ref-looking input that could be parsed as a git flag (e.g. --output=...).
 export function assertRef(ref) {
   if (typeof ref !== 'string' || ref === '' || ref.startsWith('-')) {
@@ -49,6 +53,15 @@ export async function repoInfo(cwd) {
   return { name: path.basename(toplevel), branches, current, defaultBase }
 }
 
+// Defined as what the tool can actually render: tracked changes, staged or not.
+//
+// ponytail: untracked files can't appear in `git diff` output at all, and the fix
+// for that (`git add -N`) would write to the index of the repo under review,
+// which this tool never does. They are surfaced as a count instead.
+export async function isDirty(cwd) {
+  return (await git(cwd, 'diff', 'HEAD', '--name-only')).trim() !== ''
+}
+
 export async function mergeBase(cwd, base, head) {
   return (await git(cwd, 'merge-base', assertRef(base), assertRef(head))).trim()
 }
@@ -56,13 +69,29 @@ export async function mergeBase(cwd, base, head) {
 export async function commits(cwd, base, head) {
   const mb = await mergeBase(cwd, base, head)
   const out = await git(cwd, 'log', '--reverse', '--format=%H%x1f%h%x1f%s%x1f%an%x1f%aI', `${mb}..${assertRef(head)}`)
-  return out
+  const list = out
     .split('\n')
     .filter(Boolean)
     .map(line => {
       const [sha, shortSha, subject, author, date] = line.split('\x1f')
       return { sha, shortSha, subject, author, date }
     })
+
+  // Uncommitted work is the newest entry, but only on the branch that is
+  // actually checked out: comparing two other branches says nothing about the
+  // working tree. The identifying fields are empty because there is no commit.
+  const current = (await git(cwd, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
+  if (head === current && (await isDirty(cwd))) {
+    list.push({
+      sha: WORKTREE,
+      shortSha: null,
+      subject: 'Uncommitted changes',
+      author: null,
+      date: null,
+      worktree: true
+    })
+  }
+  return list
 }
 
 // `-w` hides whitespace-only differences. It must reach the patch AND the
@@ -80,6 +109,13 @@ function pathArgs({ file, exclude }) {
   return []
 }
 
+// What the working tree is diffed against. A two-dot range with no second ref
+// means "...to the working tree", so cumulative spans the branch from its fork
+// point and single shows only what isn't committed yet.
+async function worktreeFrom(cwd, { base, head, mode }) {
+  return mode === 'cumulative' ? await mergeBase(cwd, base, head) : 'HEAD'
+}
+
 export async function diff(cwd, opts) {
   const { base, head, commit, mode } = opts
   const paths = pathArgs(opts)
@@ -90,6 +126,9 @@ export async function diff(cwd, opts) {
   const ctx = context === null ? [] : [`-U${context}`]
   // `-M` so the patch's rename detection matches the file list's, whatever the
   // user's diff.renames config is.
+  if (commit === WORKTREE) {
+    return git(cwd, 'diff', '-M', ...ws, ...ctx, await worktreeFrom(cwd, opts), ...paths)
+  }
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {
@@ -143,6 +182,9 @@ function parseNameStatusZ(out) {
 async function statArgs(cwd, opts, which) {
   const { base, head, commit, mode } = opts
   const ws = wsArgs(opts)
+  if (commit === WORKTREE) {
+    return ['diff', which, '-M', '-z', ...ws, await worktreeFrom(cwd, opts)]
+  }
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {

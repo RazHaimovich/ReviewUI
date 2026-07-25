@@ -292,6 +292,56 @@ test('GET /api/diff with an unknown branch returns a 500 with an error message',
   assert.ok(error)
 })
 
+test('uncommitted work is the newest commit-bar entry, with no id', async () => {
+  const fx = makeFixtureRepo()
+  writeFileSync(path.join(fx.dir, 'hello.js'), 'export const greet = (name = "world") => `hello ${name}`;\n')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const commits = await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()
+    assert.equal(commits.length, 3) // two commits plus the working tree
+    const last = commits.at(-1)
+    assert.equal(last.sha, 'worktree')
+    assert.equal(last.worktree, true)
+    assert.equal(last.subject, 'Uncommitted changes')
+    assert.equal(last.shortSha, null, 'no id to show')
+    assert.equal(last.author, null)
+    assert.equal(last.date, null)
+
+    // "Uncommitted only" is what has not been committed yet.
+    const q = 'base=main&head=feature&commit=worktree'
+    const single = await (await fetch(`${b}/api/diff?${q}&mode=single`)).json()
+    assert.equal(single.diff, fx.git('diff', '-M', 'HEAD'))
+    assert.deepEqual(
+      single.files.map(f => f.path),
+      ['hello.js']
+    )
+
+    // "Branch + uncommitted" spans the whole branch from its fork point.
+    const mb = fx.git('merge-base', 'main', 'feature').trim()
+    const cumulative = await (await fetch(`${b}/api/diff?${q}&mode=cumulative`)).json()
+    assert.equal(cumulative.diff, fx.git('diff', '-M', mb))
+    assert.match(cumulative.diff, /name = "world"/)
+    assert.match(cumulative.diff, /bye\.js/, 'committed work is included too')
+
+    // The working tree says nothing about a branch that is not checked out.
+    const other = await (await fetch(`${b}/api/commits?base=feature&head=main`)).json()
+    assert.ok(
+      other.every(c => c.sha !== 'worktree'),
+      'no entry when head is not the checked-out branch'
+    )
+  } finally {
+    srv.close()
+  }
+})
+
+test('a clean working tree appends no entry', async () => {
+  const commits = await (await fetch(`${base}/api/commits?base=main&head=feature`)).json()
+  assert.equal(commits.length, 2)
+  assert.ok(commits.every(c => c.sha !== 'worktree'))
+})
+
 test('severity defaults to must-fix, can be changed, and is validated', async () => {
   const post = payload =>
     fetch(`${base}/api/comments`, {

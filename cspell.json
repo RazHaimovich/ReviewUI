@@ -42,6 +42,7 @@
     "unhighlighted",
     "stylesheet",
     "pilcrow",
-    "reindent"
+    "reindent",
+    "worktree"
   ]
 }

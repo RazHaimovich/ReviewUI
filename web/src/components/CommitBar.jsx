@@ -23,8 +23,22 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
 
   const commitOptions = [
     { value: 'final', label: `All ${commits.length} commits` },
-    ...commits.map((c, i) => ({ value: c.sha, label: `${i + 1}. ${c.shortSha} · ${c.subject}` }))
+    // The working-tree entry has no id to show, so it is labelled by name alone.
+    ...commits.map((c, i) => ({
+      value: c.sha,
+      label: c.worktree ? `${i + 1}. ${c.subject}` : `${i + 1}. ${c.shortSha} · ${c.subject}`
+    }))
   ]
+
+  const modes = selected?.worktree
+    ? [
+        ['single', 'Uncommitted only'],
+        ['cumulative', 'Branch + uncommitted']
+      ]
+    : [
+        ['single', 'This commit'],
+        ['cumulative', 'Cumulative']
+      ]
 
   const date = selected?.date && new Date(selected.date)
 
@@ -67,10 +81,7 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
       {selected && (
         <>
           <span className="flex items-center rounded-md bg-panel2 p-0.5">
-            {[
-              ['single', 'This commit'],
-              ['cumulative', 'Cumulative']
-            ].map(([m, label]) => (
+            {modes.map(([m, label]) => (
               <button
                 key={m}
                 onClick={() => onMode(m)}
@@ -83,10 +94,12 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
               </button>
             ))}
           </span>
-          <span className="truncate font-mono text-xs text-faint">
-            {selected.author}
-            {formattedDate ? ` · ${formattedDate}` : ''}
-          </span>
+          {!selected.worktree && (
+            <span className="truncate font-mono text-xs text-faint">
+              {selected.author}
+              {formattedDate ? ` · ${formattedDate}` : ''}
+            </span>
+          )}
         </>
       )}
     </div>
