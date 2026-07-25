@@ -172,23 +172,27 @@ export default function App() {
       .catch(err => setError(err.message))
   }, [base, head])
 
-  const diffParams = () => {
+  // The single derivation of "which diff am I looking at". Both the whole-diff
+  // fetch and the single-file fetch send it, so a new request parameter is added
+  // in one place instead of three.
+  const diffParams = useMemo(() => {
     const params = { base, head }
     if (view !== 'final') Object.assign(params, { commit: view, mode })
     return params
-  }
+  }, [base, head, view, mode])
 
   // Identifies the current diff view; a late async load whose key no longer
-  // matches is discarded so it can't inject a stale view's hunks.
-  const diffKey = `${base}|${head}|${view}|${mode}`
+  // matches is discarded so it can't inject a stale view's hunks. Derived from
+  // the params so anything that changes the request also changes the key.
+  const diffKey = JSON.stringify(diffParams)
   const diffKeyRef = useRef(diffKey)
   diffKeyRef.current = diffKey
 
   useEffect(() => {
-    if (!base || !head) return
+    if (!diffParams.base || !diffParams.head) return
     let stale = false
     setLoadingDiff(true)
-    getDiff(diffParams())
+    getDiff(diffParams)
       .then(({ diff, files: list }) => {
         if (stale) return
         const map = new Map()
@@ -202,16 +206,13 @@ export default function App() {
     return () => {
       stale = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, head, view, mode])
+  }, [diffParams])
 
   const loadLongFile = useCallback(
     async path => {
       const key = diffKeyRef.current
       try {
-        const params = { base, head }
-        if (view !== 'final') Object.assign(params, { commit: view, mode })
-        const text = await getFileDiff({ ...params, file: path })
+        const text = await getFileDiff({ ...diffParams, file: path })
         // Bail if the view changed while fetching - else we'd merge stale hunks.
         if (diffKeyRef.current !== key) return
         const [f] = parseDiff(text)
@@ -220,7 +221,7 @@ export default function App() {
         setError(err.message)
       }
     },
-    [base, head, view, mode]
+    [diffParams]
   )
 
   const refreshComments = useCallback(() => getComments().then(setComments), [])
