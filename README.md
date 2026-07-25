@@ -6,7 +6,8 @@
 **GitHub:** https://github.com/RazHaimovich/ReviewUI
 
 Review any git branch like a GitHub pull request, locally, and turn your review
-comments into a single prompt for Claude Code.
+comments into a single prompt for your coding agent (Claude Code, Codex, or
+anything else that takes a prompt).
 
 ```sh
 cd your-repo
@@ -17,7 +18,28 @@ Opens a review UI at http://localhost:41096 comparing your current branch
 against `main`/`master`. Browse the diff (final result or commit by commit),
 leave comments on lines or ranges, then click **Generate Prompt** - the
 assembled feedback is copied to your clipboard and printed to the terminal,
-ready to paste into Claude Code.
+ready to paste into Claude Code, Codex, or any other agent.
+
+Requires Node 18+ and `git` on your PATH. Nothing to install and nothing to
+configure.
+
+## What you get
+
+- Side-by-side or unified diff with syntax highlighting and a file tree.
+- Pick any base and compare branch, not just the default guess.
+- Review the whole branch at once or step through it commit by commit.
+- Line and range comments, plus an overall summary, bundled into one prompt.
+- Light and dark themes.
+
+## Options
+
+| Variable           | Effect                                                   |
+| ------------------ | -------------------------------------------------------- |
+| `REVIEWUI_PORT`    | Pin an exact port. Unset, it auto-increments from 41096. |
+| `REVIEWUI_NO_OPEN` | Set to any value to skip opening the browser.            |
+
+The server binds to `127.0.0.1` only, keeps comments in memory for the session,
+and never writes into the repository it is reviewing.
 
 ## Development
 
