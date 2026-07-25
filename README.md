@@ -28,7 +28,9 @@ configure.
 
 - **Review work you haven't committed yet.** Uncommitted changes show up as the
   newest entry in the commit bar, with no id, and the default view includes them.
-  Nothing reloads on its own: **Refresh** re-reads the repo when you ask.
+  Nothing reloads on its own: **Refresh** re-reads the repo when you ask. Files
+  git doesn't track yet can't appear in a diff, so they're counted above the file
+  tree instead - `git add` them to bring them into the review.
 - Side-by-side or unified diff, with only the words that changed highlighted.
 - Syntax highlighting that covers extensionless files like `Dockerfile` too.
 - Pick any base and compare branch, not just the default guess.
@@ -69,7 +71,7 @@ and never writes into the repository it is reviewing.
 ```sh
 npm install
 npm run build        # build the web UI into web/dist
-npm test             # HTTP API tests against a fixture git repo
+npm test             # HTTP API tests against a fixture repo, plus unit tests
 node server/index.js # run from inside any git repo
 npm run dev:web      # Vite dev server (proxies /api to :41096)
 ```
