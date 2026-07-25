@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef, useState } from 'react'
-import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view'
+import { Diff, Hunk, getChangeKey, markEdits, tokenize } from 'react-diff-view'
 import clsx from 'clsx'
 import { ChevronDownIcon, ChevronRightIcon, Loader2Icon, MessageSquarePlusIcon, PlusIcon } from 'lucide-react'
 import { highlighter, languageFor } from '../lib/highlight.js'
@@ -43,12 +43,18 @@ function FileDiff({
     setFileDraft(false)
   }
 
+  // markEdits narrows the highlight to the characters that actually changed, so a
+  // one-character edit doesn't light up the whole line. It runs whether or not a
+  // language resolved, which is why the highlight options are spread in
+  // conditionally rather than returning early on an unknown file type.
   const tokens = useMemo(() => {
     if (!loaded || collapsed) return undefined
     const language = languageFor(path)
-    if (!language) return undefined
     try {
-      return tokenize(file.hunks, { highlight: true, refractor: highlighter, language })
+      return tokenize(file.hunks, {
+        enhancers: [markEdits(file.hunks, { type: 'block' })],
+        ...(language && { highlight: true, refractor: highlighter, language })
+      })
     } catch {
       return undefined
     }

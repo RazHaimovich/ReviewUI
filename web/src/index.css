@@ -165,6 +165,17 @@ button:disabled {
 .diff-gutter-delete {
   background: color-mix(in srgb, var(--c-del) 22%, transparent);
 }
+/* Word-level marks: the characters that actually changed inside a changed line.
+   react-diff-view's own stylesheet hardcodes light-mode greens and reds here, so
+   both themes are re-derived from the palette instead. */
+.diff-code-insert .diff-code-edit {
+  background: color-mix(in srgb, var(--c-add) 30%, transparent);
+  border-radius: 2px;
+}
+.diff-code-delete .diff-code-edit {
+  background: color-mix(in srgb, var(--c-del) 28%, transparent);
+  border-radius: 2px;
+}
 .diff-code-selected,
 .diff-code-selected.diff-code-insert,
 .diff-code-selected.diff-code-delete {

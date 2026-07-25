@@ -39,6 +39,7 @@
     "rakefile",
     "tfvars",
     "extensionless",
-    "unhighlighted"
+    "unhighlighted",
+    "stylesheet"
   ]
 }
