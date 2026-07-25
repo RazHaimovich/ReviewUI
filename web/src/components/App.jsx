@@ -467,13 +467,15 @@ export default function App() {
         document.getElementById(next)?.scrollIntoView({ block: 'start' })
       } else if (event.key === 'v') {
         if (keys.focused) keys.toggleReviewed(keys.focused)
+      } else if (event.key === '?' || (event.key === '/' && event.shiftKey)) {
+        // Some input paths report shift+/ as '/' with a shift modifier rather
+        // than as '?', so both spellings have to mean the same thing.
+        keys.showShortcuts()
       } else if (event.key === '/') {
         event.preventDefault()
         keys.focusFilter()
       } else if (event.key === 'g') {
         if (keys.canGenerate) keys.onGenerate()
-      } else if (event.key === '?') {
-        keys.showShortcuts()
       }
     }
     window.addEventListener('keydown', onKey)
