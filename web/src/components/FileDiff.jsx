@@ -58,6 +58,10 @@ function FileDiff({
     setFileDraft(false)
   }
 
+  // An added or deleted file's diff already contains every line, so there is no
+  // hidden context to reveal and the control would be a dead click.
+  const canExpand = loaded && !file.binary && file.type !== 'add' && file.type !== 'delete'
+
   // Re-fetch just this file with the next context width. Set optimistically: a
   // failed fetch surfaces in the error banner rather than needing its own state.
   const cycleContext = () => {
@@ -221,7 +225,7 @@ function FileDiff({
           {adds > 0 && <span className="text-add">+{adds}</span>}
           {dels > 0 && <span className="text-del">-{dels}</span>}
         </span>
-        {loaded && !file.binary && (
+        {canExpand && (
           <Tooltip label="Context lines around each change">
             <button
               onClick={cycleContext}
