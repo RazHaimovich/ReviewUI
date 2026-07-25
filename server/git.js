@@ -14,6 +14,19 @@ export function assertRef(ref) {
   return ref
 }
 
+// Context lines come from the client and become a `-U` git argument, so bound
+// them. Returns null for "not asked for", which leaves git's own default alone.
+export function assertContext(context) {
+  if (context === undefined || context === null || context === '') return null
+  const n = Number(context)
+  if (!Number.isInteger(n) || n < 0 || n > 99999) {
+    const err = new Error(`invalid context: ${JSON.stringify(context)}`)
+    err.status = 400
+    throw err
+  }
+  return n
+}
+
 export async function git(cwd, ...args) {
   const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 64 * 1024 * 1024 })
   return stdout
@@ -71,17 +84,21 @@ export async function diff(cwd, opts) {
   const { base, head, commit, mode } = opts
   const paths = pathArgs(opts)
   const ws = wsArgs(opts)
+  // Context widens the patch only. It cannot change add/delete counts, so the
+  // stat commands deliberately do not take it.
+  const context = assertContext(opts.context)
+  const ctx = context === null ? [] : [`-U${context}`]
   // `-M` so the patch's rename detection matches the file list's, whatever the
   // user's diff.renames config is.
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {
       const mb = await mergeBase(cwd, base, head)
-      return git(cwd, 'diff', '-M', ...ws, `${mb}..${commit}`, ...paths)
+      return git(cwd, 'diff', '-M', ...ws, ...ctx, `${mb}..${commit}`, ...paths)
     }
-    return git(cwd, 'show', '-M', ...ws, '--format=', '--patch', commit, ...paths)
+    return git(cwd, 'show', '-M', ...ws, ...ctx, '--format=', '--patch', commit, ...paths)
   }
-  return git(cwd, 'diff', '-M', ...ws, `${assertRef(base)}...${assertRef(head)}`, ...paths)
+  return git(cwd, 'diff', '-M', ...ws, ...ctx, `${assertRef(base)}...${assertRef(head)}`, ...paths)
 }
 
 const STATUS_TYPE = { A: 'add', D: 'delete', M: 'modify', T: 'modify' }

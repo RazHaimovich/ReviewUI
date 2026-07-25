@@ -292,6 +292,19 @@ test('GET /api/diff with an unknown branch returns a 500 with an error message',
   assert.ok(error)
 })
 
+test('context widens a single file patch, and out-of-range values are rejected', async () => {
+  const q = 'base=main&head=feature&file=hello.js'
+  const res = await fetch(`${base}/api/diff?${q}&context=20`)
+  assert.equal(res.status, 200)
+  assert.equal(await res.text(), fixture.git('diff', '-M', '-U20', 'main...feature', '--', 'hello.js'))
+
+  // It becomes a git argument, so anything unusable is a client error.
+  for (const bad of ['nope', '-1', '100000', '1.5']) {
+    const r = await fetch(`${base}/api/diff?${q}&context=${bad}`)
+    assert.equal(r.status, 400, `context=${bad} should be rejected`)
+  }
+})
+
 test('ws=1 hides a whitespace-only change from both the patch and the file list', async () => {
   const fx = makeFixtureRepo()
   // A commit that only re-indents: the kind of change that makes a branch

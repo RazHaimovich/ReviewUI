@@ -221,11 +221,15 @@ export default function App() {
     }
   }, [diffParams])
 
-  const loadLongFile = useCallback(
-    async path => {
+  // Fetches one file's diff and merges it in: used both to load a long file the
+  // server omitted, and to re-fetch a file with more context lines.
+  const loadFile = useCallback(
+    async (path, context) => {
       const key = diffKeyRef.current
       try {
-        const text = await getFileDiff({ ...diffParams, file: path })
+        const params = { ...diffParams, file: path }
+        if (context != null) params.context = context
+        const text = await getFileDiff(params)
         // Bail if the view changed while fetching - else we'd merge stale hunks.
         if (diffKeyRef.current !== key) return
         const [f] = parseDiff(text)
@@ -549,7 +553,8 @@ export default function App() {
                 onCreate={onCreateComment}
                 onUpdate={onUpdateComment}
                 onDelete={onDeleteComment}
-                onLoad={loadLongFile}
+                onLoad={loadFile}
+                viewKey={diffKey}
               />
             ))
           )}

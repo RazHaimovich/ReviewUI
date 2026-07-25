@@ -1,7 +1,15 @@
-import { memo, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Diff, Hunk, getChangeKey, markEdits, tokenize } from 'react-diff-view'
 import clsx from 'clsx'
-import { ChevronDownIcon, ChevronRightIcon, Loader2Icon, MessageSquarePlusIcon, PlusIcon } from 'lucide-react'
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  Loader2Icon,
+  MessageSquarePlusIcon,
+  PlusIcon,
+  UnfoldVerticalIcon
+} from 'lucide-react'
+import { contextLabel, nextContext } from '../lib/diffContext.js'
 import { highlighter, languageFor } from '../lib/highlight.js'
 import { lineNumberOn, lineRange } from '../lib/lineRange.js'
 import { CommentCard, CommentForm } from './Comment.jsx'
@@ -22,12 +30,18 @@ function FileDiff({
   onCreate,
   onUpdate,
   onDelete,
-  onLoad
+  onLoad,
+  viewKey
 }) {
   // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
   const [draft, setDraft] = useState(null)
   const [fileDraft, setFileDraft] = useState(false)
   const [loadingFile, setLoadingFile] = useState(false)
+  const [context, setContext] = useState(null)
+
+  // The parsed diff is replaced wholesale when the view changes, but this state
+  // outlives it, so reset or the control would advertise context the diff lacks.
+  useEffect(() => setContext(null), [viewKey])
   const draggingRef = useRef(false)
   const path = file.path ?? filePath(file)
   const adds = file.adds ?? 0
@@ -41,6 +55,14 @@ function FileDiff({
   const saveFileComment = body => {
     onCreate({ filePath: path, scope: 'file', body })
     setFileDraft(false)
+  }
+
+  // Re-fetch just this file with the next context width. Set optimistically: a
+  // failed fetch surfaces in the error banner rather than needing its own state.
+  const cycleContext = () => {
+    const next = nextContext(context)
+    setContext(next)
+    onLoad(path, next)
   }
 
   // markEdits narrows the highlight to the characters that actually changed, so a
@@ -192,6 +214,17 @@ function FileDiff({
           {adds > 0 && <span className="text-add">+{adds}</span>}
           {dels > 0 && <span className="text-del">-{dels}</span>}
         </span>
+        {loaded && !file.binary && (
+          <Tooltip label="Context lines around each change">
+            <button
+              onClick={cycleContext}
+              className="flex shrink-0 items-center gap-1 rounded px-1 text-muted hover:bg-line hover:text-ink"
+            >
+              <UnfoldVerticalIcon className="size-3.5" />
+              <span className="tnum">{contextLabel(context)}</span>
+            </button>
+          </Tooltip>
+        )}
         <Tooltip label="Comment on file">
           <button
             onClick={() => setFileDraft(true)}
