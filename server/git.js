@@ -109,6 +109,16 @@ function pathArgs({ file, exclude }) {
   return []
 }
 
+// Whether the default "Final result" view should span the working tree rather
+// than stopping at the branch tip. True only when no specific commit was asked
+// for, the compare branch is the checked-out one, and something is uncommitted.
+// Short-circuits without touching git when a commit was named.
+export async function finalIncludesWorktree(cwd, { head, commit }) {
+  if (commit) return false
+  const current = (await git(cwd, 'rev-parse', '--abbrev-ref', 'HEAD')).trim()
+  return head === current && (await isDirty(cwd))
+}
+
 // What the working tree is diffed against. A two-dot range with no second ref
 // means "...to the working tree", so cumulative spans the branch from its fork
 // point and single shows only what isn't committed yet.

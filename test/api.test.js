@@ -336,6 +336,50 @@ test('uncommitted work is the newest commit-bar entry, with no id', async () => 
   }
 })
 
+test('Final result spans the working tree when the checked-out branch is dirty', async () => {
+  const fx = makeFixtureRepo()
+  writeFileSync(path.join(fx.dir, 'uncommitted.js'), 'export const soon = () => 1\n')
+  fx.git('add', '-A') // staged but not committed
+  writeFileSync(path.join(fx.dir, 'hello.js'), 'export const greet = (name = "world") => `hello ${name}`;\n')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const mb = fx.git('merge-base', 'main', 'feature').trim()
+    const final = await (await fetch(`${b}/api/diff?base=main&head=feature`)).json()
+    assert.equal(final.uncommitted, true)
+    assert.equal(final.diff, fx.git('diff', '-M', mb))
+    assert.ok(
+      final.files.some(f => f.path === 'uncommitted.js'),
+      'staged-only file is in the default view'
+    )
+    assert.ok(
+      final.files.some(f => f.path === 'hello.js'),
+      'unstaged edit is in the default view'
+    )
+
+    // A single-file request from the same view must describe the same diff.
+    const one = await (await fetch(`${b}/api/diff?base=main&head=feature&file=hello.js`)).text()
+    assert.equal(one, fx.git('diff', '-M', mb, '--', 'hello.js'))
+
+    // Selecting a real commit still means that commit, not the working tree.
+    const commits = await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()
+    const first = await (
+      await fetch(`${b}/api/diff?base=main&head=feature&commit=${commits[0].sha}&mode=single`)
+    ).json()
+    assert.equal(first.uncommitted, false)
+    assert.doesNotMatch(first.diff, /name = "world"/)
+  } finally {
+    srv.close()
+  }
+})
+
+test('a clean working tree appends no entry, and Final result is unchanged', async () => {
+  const { diff, uncommitted } = await (await fetch(`${base}/api/diff?base=main&head=feature`)).json()
+  assert.equal(uncommitted, false)
+  assert.equal(diff, fixture.git('diff', 'main...feature'), 'byte-identical to the three-dot diff')
+})
+
 test('a clean working tree appends no entry', async () => {
   const commits = await (await fetch(`${base}/api/commits?base=main&head=feature`)).json()
   assert.equal(commits.length, 2)
