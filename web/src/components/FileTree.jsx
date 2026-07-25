@@ -126,9 +126,9 @@ function TreeLevel({ node, depth, onToggleReviewed }) {
   )
 }
 
-export default function FileTree({ entries, onToggleReviewed }) {
+export default function FileTree({ entries, onToggleReviewed, emptyLabel = 'No changes' }) {
   if (entries.length === 0) {
-    return <p className="px-2 py-1 font-mono text-xs text-faint">No changes</p>
+    return <p className="px-2 py-1 font-mono text-xs text-faint">{emptyLabel}</p>
   }
   return <TreeLevel node={buildTree(entries)} depth={0} onToggleReviewed={onToggleReviewed} />
 }

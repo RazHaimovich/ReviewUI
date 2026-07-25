@@ -11,8 +11,10 @@ import {
   Loader2Icon,
   MessagesSquareIcon,
   MoonIcon,
+  PilcrowIcon,
   RotateCcwIcon,
   Rows3Icon,
+  SearchIcon,
   SparklesIcon,
   SunIcon
 } from 'lucide-react'
@@ -27,6 +29,8 @@ import {
   deleteComment,
   generatePrompt
 } from '../lib/api.js'
+import { filterEntries, isFiltering, NO_FILTER } from '../lib/fileFilter.js'
+import { isTypingTarget, nextPath } from '../lib/keyNav.js'
 import CommitBar from './CommitBar.jsx'
 import CommentsModal from './CommentsModal.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
@@ -34,6 +38,7 @@ import FileDiff, { filePath } from './FileDiff.jsx'
 import FileTree from './FileTree.jsx'
 import PromptModal from './PromptModal.jsx'
 import Select from './Select.jsx'
+import ShortcutsModal from './ShortcutsModal.jsx'
 import Tooltip from './Tooltip.jsx'
 
 // Stable reference for files with no comments, so React.memo on FileDiff holds.
@@ -129,6 +134,14 @@ function useFontSize() {
   return [size, cycle]
 }
 
+function useIgnoreWs() {
+  const [ignoreWs, setIgnoreWs] = useState(() => localStorage.reviewuiIgnoreWs === '1')
+  useEffect(() => {
+    localStorage.reviewuiIgnoreWs = ignoreWs ? '1' : '0'
+  }, [ignoreWs])
+  return [ignoreWs, () => setIgnoreWs(v => !v)]
+}
+
 export default function App() {
   const [repo, setRepo] = useState(null)
   const [base, setBase] = useState(null)
@@ -146,10 +159,20 @@ export default function App() {
   const [summary, setSummary] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
   const [showComments, setShowComments] = useState(false)
+  const [filter, setFilter] = useState(NO_FILTER)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [focused, setFocused] = useState(null)
+  const filterRef = useRef(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
+  const [uncommittedView, setUncommittedView] = useState(false)
+  const [untracked, setUntracked] = useState([])
+  const [notice, setNotice] = useState(null)
+  // Bumped by Refresh to re-run the fetches without changing what is requested.
+  const [reloadToken, setReloadToken] = useState(0)
   const [error, setError] = useState(null)
   const [dark, setDark] = useTheme()
   const [fontSize, cycleFontSize] = useFontSize()
+  const [ignoreWs, toggleIgnoreWs] = useIgnoreWs()
 
   useEffect(() => {
     getRepo()
@@ -164,37 +187,66 @@ export default function App() {
       .catch(() => {})
   }, [])
 
+  // Changing the comparison starts you at the top; refreshing must not, so this
+  // is deliberately separate from the fetch below.
   useEffect(() => {
-    if (!base || !head) return
     setView('final')
-    getCommits({ base, head })
-      .then(setCommits)
-      .catch(err => setError(err.message))
   }, [base, head])
 
-  const diffParams = () => {
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  useEffect(() => {
+    if (!base || !head) return
+    getCommits({ base, head })
+      .then(list => {
+        setCommits(list)
+        // If what you were looking at is no longer in the branch - you committed
+        // it, a rebase rewrote it, it was dropped - fall back to the one view
+        // that always exists rather than leaving you on an empty screen.
+        const current = viewRef.current
+        if (current !== 'final' && !list.some(c => c.sha === current)) {
+          setView('final')
+          setNotice('What you were viewing is no longer in this branch, so this is the final result.')
+        }
+      })
+      .catch(err => setError(err.message))
+  }, [base, head, reloadToken])
+
+  // The single derivation of "which diff am I looking at". Both the whole-diff
+  // fetch and the single-file fetch send it, so a new request parameter is added
+  // in one place instead of three.
+  const diffParams = useMemo(() => {
     const params = { base, head }
     if (view !== 'final') Object.assign(params, { commit: view, mode })
+    // Only present when on: an absent param can't be misread as truthy the way
+    // the string "false" would be.
+    if (ignoreWs) params.ws = 1
     return params
-  }
+  }, [base, head, view, mode, ignoreWs])
 
   // Identifies the current diff view; a late async load whose key no longer
-  // matches is discarded so it can't inject a stale view's hunks.
-  const diffKey = `${base}|${head}|${view}|${mode}`
+  // matches is discarded so it can't inject a stale view's hunks. Derived from
+  // the params so anything that changes the request also changes the key.
+  const diffKey = JSON.stringify(diffParams)
   const diffKeyRef = useRef(diffKey)
   diffKeyRef.current = diffKey
 
   useEffect(() => {
-    if (!base || !head) return
+    if (!diffParams.base || !diffParams.head) return
     let stale = false
     setLoadingDiff(true)
-    getDiff(diffParams())
-      .then(({ diff, files: list }) => {
+    getDiff(diffParams)
+      .then(({ diff, files: list, uncommitted, untracked: untrackedPaths }) => {
         if (stale) return
         const map = new Map()
         if (diff.trim()) for (const f of parseDiff(diff)) map.set(filePath(f), f)
         setParsed(map)
         setFileList(list ?? [])
+        // The server decides whether this view spans the working tree, so
+        // comments made here can record that their lines may move.
+        setUncommittedView(Boolean(uncommitted))
+        setUntracked(untrackedPaths ?? [])
         setError(null)
       })
       .catch(err => !stale && setError(err.message))
@@ -202,16 +254,17 @@ export default function App() {
     return () => {
       stale = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, head, view, mode])
+  }, [diffParams, reloadToken])
 
-  const loadLongFile = useCallback(
-    async path => {
+  // Fetches one file's diff and merges it in: used both to load a long file the
+  // server omitted, and to re-fetch a file with more context lines.
+  const loadFile = useCallback(
+    async (path, context) => {
       const key = diffKeyRef.current
       try {
-        const params = { base, head }
-        if (view !== 'final') Object.assign(params, { commit: view, mode })
-        const text = await getFileDiff({ ...params, file: path })
+        const params = { ...diffParams, file: path }
+        if (context != null) params.context = context
+        const text = await getFileDiff(params)
         // Bail if the view changed while fetching - else we'd merge stale hunks.
         if (diffKeyRef.current !== key) return
         const [f] = parseDiff(text)
@@ -220,8 +273,26 @@ export default function App() {
         setError(err.message)
       }
     },
-    [base, head, view, mode]
+    [diffParams]
   )
+
+  // Refreshing is always a deliberate act: nothing here polls or listens for
+  // focus. A working tree changes under you, and comment widgets are keyed by a
+  // change that a silent refetch could remove, which would make a comment vanish
+  // from the file while it stayed in the store and in the prompt.
+  const onRefresh = () => {
+    setNotice(null)
+    getRepo()
+      .then(info => {
+        setRepo(info)
+        // A branch that disappeared while reviewing would otherwise leave the
+        // picker pointing at nothing.
+        if (!info.branches.includes(base)) setBase(info.defaultBase ?? info.current)
+        if (!info.branches.includes(head)) setHead(info.current)
+      })
+      .catch(err => setError(err.message))
+    setReloadToken(t => t + 1)
+  }
 
   const refreshComments = useCallback(() => getComments().then(setComments), [])
   const onCreateComment = useCallback(
@@ -229,11 +300,12 @@ export default function App() {
       createComment({
         ...comment,
         commitSha: view === 'final' ? null : view,
-        mode: view === 'final' ? null : mode
+        mode: view === 'final' ? null : mode,
+        uncommitted: uncommittedView
       })
         .then(refreshComments)
         .catch(err => setError(err.message)),
-    [view, mode, refreshComments]
+    [view, mode, uncommittedView, refreshComments]
   )
   const onUpdateComment = useCallback(
     (id, patch) =>
@@ -333,6 +405,83 @@ export default function App() {
     [fileList, parsed]
   )
 
+  const treeEntries = useMemo(
+    () =>
+      entries.map(e => ({
+        path: e.path,
+        type: e.type ?? 'modify',
+        adds: e.adds,
+        dels: e.dels,
+        comments: (commentsByPath.get(e.path) ?? NO_COMMENTS).length,
+        reviewed: reviewed.has(e.path)
+      })),
+    [entries, commentsByPath, reviewed]
+  )
+
+  // The sidebar shows the filtered list; the diff column still shows everything.
+  const visibleEntries = useMemo(() => filterEntries(treeEntries, filter), [treeEntries, filter])
+  const filtering = isFiltering(filter)
+
+  // Everything the key handler needs, refreshed every render so the listener can
+  // be attached once instead of resubscribing whenever the review changes.
+  const keysRef = useRef(null)
+  keysRef.current = {
+    paths: visibleEntries.map(e => e.path),
+    focused,
+    setFocused,
+    toggleReviewed,
+    canGenerate: comments.length > 0,
+    onGenerate,
+    focusFilter: () => filterRef.current?.focus(),
+    showShortcuts: () => setShowShortcuts(true),
+    // Closes the topmost dialog, matching the order they stack in the tree.
+    closeTopModal: () => {
+      if (confirmReset) setConfirmReset(false)
+      else if (prompt !== null) setPrompt(null)
+      else if (showComments) setShowComments(false)
+      else if (showShortcuts) setShowShortcuts(false)
+    }
+  }
+
+  useEffect(() => {
+    const onKey = event => {
+      // Let the browser and OS keep their chords.
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const keys = keysRef.current
+      const target = event.target
+      const typing = isTypingTarget(target)
+
+      if (event.key === 'Escape') {
+        if (typing) target.blur()
+        else keys.closeTopModal()
+        return
+      }
+      // Writing a comment must never trigger navigation.
+      if (typing) return
+
+      if (event.key === 'j' || event.key === 'k') {
+        const next = nextPath(keys.paths, keys.focused, event.key === 'j' ? 1 : -1)
+        if (!next) return
+        event.preventDefault()
+        keys.setFocused(next)
+        document.getElementById(next)?.scrollIntoView({ block: 'start' })
+      } else if (event.key === 'v') {
+        if (keys.focused) keys.toggleReviewed(keys.focused)
+      } else if (event.key === '?' || (event.key === '/' && event.shiftKey)) {
+        // Some input paths report shift+/ as '/' with a shift modifier rather
+        // than as '?', so both spellings have to mean the same thing.
+        keys.showShortcuts()
+      } else if (event.key === '/') {
+        event.preventDefault()
+        keys.focusFilter()
+      } else if (event.key === 'g') {
+        if (keys.canGenerate) keys.onGenerate()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   if (!repo) {
     return (
       <div className="grid min-h-screen place-items-center bg-bg text-muted">
@@ -347,15 +496,6 @@ export default function App() {
       </div>
     )
   }
-
-  const treeEntries = entries.map(e => ({
-    path: e.path,
-    type: e.type ?? 'modify',
-    adds: e.adds,
-    dels: e.dels,
-    comments: (commentsByPath.get(e.path) ?? NO_COMMENTS).length,
-    reviewed: reviewed.has(e.path)
-  }))
 
   const paths = fileList.map(s => s.path)
   const allCollapsed = paths.length > 0 && paths.every(p => collapsed.has(p))
@@ -410,6 +550,19 @@ export default function App() {
                 </Tooltip>
               ))}
             </div>
+
+            <Tooltip label={ignoreWs ? 'Show whitespace changes' : 'Ignore whitespace changes'}>
+              <button
+                onClick={toggleIgnoreWs}
+                aria-pressed={ignoreWs}
+                className={clsx(
+                  'grid size-8 place-items-center rounded-md',
+                  ignoreWs ? 'bg-accent-soft text-accent' : 'bg-panel2 text-muted hover:bg-line hover:text-ink'
+                )}
+              >
+                <PilcrowIcon className="size-4" />
+              </button>
+            </Tooltip>
 
             <Tooltip label={`Font size: ${fontSize}`}>
               <button onClick={cycleFontSize} className={iconButton}>
@@ -485,7 +638,14 @@ export default function App() {
           </Tooltip>
         </div>
         <div className="border-t border-line px-4 py-2">
-          <CommitBar commits={commits} view={view} mode={mode} onView={setView} onMode={setMode} />
+          <CommitBar
+            commits={commits}
+            view={view}
+            mode={mode}
+            onView={setView}
+            onMode={setMode}
+            onRefresh={onRefresh}
+          />
         </div>
       </header>
 
@@ -495,10 +655,78 @@ export default function App() {
         </p>
       )}
 
+      {notice && (
+        <div className="mx-4 mt-4 flex items-start gap-2 rounded-md border border-line bg-panel2 px-3 py-2 text-xs text-muted">
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} className="ml-auto shrink-0 text-faint hover:text-ink">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <main className="mx-auto flex max-w-[1600px] items-start gap-5 p-4">
         <nav className="sticky top-28 max-h-[calc(100vh-8rem)] w-72 shrink-0 overflow-y-auto rounded-lg border border-line bg-panel p-2">
-          <p className="eyebrow px-2 pb-2 pt-1">Changed files</p>
-          {loadingDiff ? <TreeSkeleton /> : <FileTree entries={treeEntries} onToggleReviewed={toggleReviewed} />}
+          <div className="flex items-baseline gap-2 px-2 pt-1">
+            <p className="eyebrow">Changed files</p>
+            {filtering && (
+              <span className="ml-auto font-mono text-[0.6875rem] text-faint tnum">
+                {visibleEntries.length} of {treeEntries.length}
+              </span>
+            )}
+          </div>
+
+          <div className="px-1 pb-2 pt-1.5">
+            <div className="flex items-center gap-1.5 rounded-md bg-panel2 px-2 py-1">
+              <SearchIcon className="size-3.5 shrink-0 text-faint" />
+              <input
+                ref={filterRef}
+                value={filter.query}
+                onChange={e => setFilter(f => ({ ...f, query: e.target.value }))}
+                placeholder="Filter files"
+                aria-label="Filter files"
+                className="w-full bg-transparent font-mono text-xs text-ink outline-none placeholder:text-faint"
+              />
+            </div>
+            <div className="mt-1.5 flex gap-1">
+              {[
+                ['hideViewed', 'Hide viewed'],
+                ['onlyCommented', 'Only commented']
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(f => ({ ...f, [key]: !f[key] }))}
+                  aria-pressed={filter[key]}
+                  className={clsx(
+                    'rounded-md border px-1.5 py-0.5 text-[0.6875rem]',
+                    filter[key] ? 'border-accent bg-accent-soft text-accent' : 'border-line text-muted hover:bg-panel2'
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {untracked.length > 0 && (
+            <p
+              className="mb-1 px-2 text-[0.6875rem] leading-snug text-muted"
+              title={untracked.join('\n')}
+              aria-label={`${untracked.length} untracked files are not shown`}
+            >
+              {untracked.length} untracked {untracked.length === 1 ? 'file' : 'files'} not shown.{' '}
+              <span className="font-mono">git add</span> to include.
+            </p>
+          )}
+
+          {loadingDiff ? (
+            <TreeSkeleton />
+          ) : (
+            <FileTree
+              entries={visibleEntries}
+              onToggleReviewed={toggleReviewed}
+              emptyLabel={filtering ? 'No files match' : 'No changes'}
+            />
+          )}
         </nav>
         <div className="min-w-0 flex-1">
           {loadingDiff ? (
@@ -522,7 +750,9 @@ export default function App() {
                 onCreate={onCreateComment}
                 onUpdate={onUpdateComment}
                 onDelete={onDeleteComment}
-                onLoad={loadLongFile}
+                onLoad={loadFile}
+                viewKey={diffKey}
+                focused={focused === e.path}
               />
             ))
           )}
@@ -551,6 +781,8 @@ export default function App() {
           onClose={() => setShowComments(false)}
         />
       )}
+
+      {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
 
       {confirmReset && (
         <ConfirmModal

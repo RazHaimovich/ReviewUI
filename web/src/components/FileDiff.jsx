@@ -1,7 +1,15 @@
-import { memo, useMemo, useRef, useState } from 'react'
-import { Diff, Hunk, getChangeKey, tokenize } from 'react-diff-view'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { Diff, Hunk, getChangeKey, markEdits, tokenize } from 'react-diff-view'
 import clsx from 'clsx'
-import { ChevronDownIcon, ChevronRightIcon, Loader2Icon, MessageSquarePlusIcon, PlusIcon } from 'lucide-react'
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  Loader2Icon,
+  MessageSquarePlusIcon,
+  PlusIcon,
+  UnfoldVerticalIcon
+} from 'lucide-react'
+import { contextLabel, nextContext } from '../lib/diffContext.js'
 import { highlighter, languageFor } from '../lib/highlight.js'
 import { lineNumberOn, lineRange } from '../lib/lineRange.js'
 import { CommentCard, CommentForm } from './Comment.jsx'
@@ -22,12 +30,19 @@ function FileDiff({
   onCreate,
   onUpdate,
   onDelete,
-  onLoad
+  onLoad,
+  viewKey,
+  focused
 }) {
   // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
   const [draft, setDraft] = useState(null)
   const [fileDraft, setFileDraft] = useState(false)
   const [loadingFile, setLoadingFile] = useState(false)
+  const [context, setContext] = useState(null)
+
+  // The parsed diff is replaced wholesale when the view changes, but this state
+  // outlives it, so reset or the control would advertise context the diff lacks.
+  useEffect(() => setContext(null), [viewKey])
   const draggingRef = useRef(false)
   const path = file.path ?? filePath(file)
   const adds = file.adds ?? 0
@@ -38,17 +53,35 @@ function FileDiff({
   const fileComments = comments.filter(c => c.scope === 'file')
   const lineComments = comments.filter(c => c.scope !== 'file')
 
-  const saveFileComment = body => {
-    onCreate({ filePath: path, scope: 'file', body })
+  const saveFileComment = (body, severity) => {
+    onCreate({ filePath: path, scope: 'file', body, severity })
     setFileDraft(false)
   }
 
+  // An added or deleted file's diff already contains every line, so there is no
+  // hidden context to reveal and the control would be a dead click.
+  const canExpand = loaded && !file.binary && file.type !== 'add' && file.type !== 'delete'
+
+  // Re-fetch just this file with the next context width. Set optimistically: a
+  // failed fetch surfaces in the error banner rather than needing its own state.
+  const cycleContext = () => {
+    const next = nextContext(context)
+    setContext(next)
+    onLoad(path, next)
+  }
+
+  // markEdits narrows the highlight to the characters that actually changed, so a
+  // one-character edit doesn't light up the whole line. It runs whether or not a
+  // language resolved, which is why the highlight options are spread in
+  // conditionally rather than returning early on an unknown file type.
   const tokens = useMemo(() => {
     if (!loaded || collapsed) return undefined
     const language = languageFor(path)
-    if (!language) return undefined
     try {
-      return tokenize(file.hunks, { highlight: true, refractor: highlighter, language })
+      return tokenize(file.hunks, {
+        enhancers: [markEdits(file.hunks, { type: 'block' })],
+        ...(language && { highlight: true, refractor: highlighter, language })
+      })
     } catch {
       return undefined
     }
@@ -58,12 +91,13 @@ function FileDiff({
   for (const c of lineComments) (byKey[c.changeKey] ??= []).push(c)
   if (draft?.open) byKey[draft.changeKey] ??= []
 
-  const saveDraft = body => {
+  const saveDraft = (body, severity) => {
     onCreate({
       filePath: path,
       changeKey: draft.changeKey,
       ...lineRange(draft.hunk.changes, draft.startIndex, draft.endIndex),
-      body
+      body,
+      severity
     })
     setDraft(null)
   }
@@ -163,7 +197,13 @@ function FileDiff({
           : null
 
   return (
-    <section id={path} className="mb-4 scroll-mt-28 rounded-lg border border-line bg-panel">
+    <section
+      id={path}
+      className={clsx(
+        'mb-4 scroll-mt-28 rounded-lg border bg-panel',
+        focused ? 'border-accent ring-1 ring-accent' : 'border-line'
+      )}
+    >
       <header className="sticky top-[6.1rem] z-5 flex items-center gap-2 rounded-t-lg border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
         <Tooltip label={collapsed ? 'Expand file' : 'Collapse file'}>
           <button
@@ -186,6 +226,17 @@ function FileDiff({
           {adds > 0 && <span className="text-add">+{adds}</span>}
           {dels > 0 && <span className="text-del">-{dels}</span>}
         </span>
+        {canExpand && (
+          <Tooltip label="Context lines around each change">
+            <button
+              onClick={cycleContext}
+              className="flex shrink-0 items-center gap-1 rounded px-1 text-muted hover:bg-line hover:text-ink"
+            >
+              <UnfoldVerticalIcon className="size-3.5" />
+              <span className="tnum">{contextLabel(context)}</span>
+            </button>
+          </Tooltip>
+        )}
         <Tooltip label="Comment on file">
           <button
             onClick={() => setFileDraft(true)}

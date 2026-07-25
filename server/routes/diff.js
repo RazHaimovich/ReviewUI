@@ -18,13 +18,22 @@ export function diffRoutes(repoDir) {
 
   router.get('/diff', async (req, res, next) => {
     try {
+      // "Final result" means everything done on this branch, so when the
+      // checked-out branch has uncommitted work the default view runs from the
+      // fork point to the working tree. Resolved once, here, and rewritten into
+      // the working-tree sentinel: the git layer then only ever branches on the
+      // sentinel, and every command behind this one response describes the same
+      // diff even if the tree changes underneath it.
+      const includeWorktree = await g.finalIncludesWorktree(repoDir, req.query)
+      const query = includeWorktree ? { ...req.query, commit: g.WORKTREE, mode: 'cumulative' } : req.query
+
       // Single-file request: return just that file's diff text.
-      if (req.query.file) {
-        return res.type('text/plain').send(await g.diff(repoDir, req.query))
+      if (query.file) {
+        return res.type('text/plain').send(await g.diff(repoDir, query))
       }
       // Default: the ordered file list (with an `oversized` flag) plus the diff
       // text for all but the long files, which the client fetches on demand.
-      const stat = await g.diffStat(repoDir, req.query)
+      const stat = await g.diffStat(repoDir, query)
       const files = stat.map(f => ({
         path: f.path,
         adds: f.adds,
@@ -35,8 +44,14 @@ export function diffRoutes(repoDir) {
       }))
       // Binary files have no useful text diff; skip them (and long files) here.
       const exclude = files.filter(f => f.oversized || f.binary).map(f => f.path)
-      const diff = await g.diff(repoDir, { ...req.query, exclude })
-      res.json({ diff, files })
+      const diff = await g.diff(repoDir, { ...query, exclude })
+      // Tells the client whether what it is looking at includes uncommitted work,
+      // whether it asked for that or got it from the default view.
+      const uncommitted = includeWorktree || req.query.commit === g.WORKTREE
+      // Only worth mentioning while looking at the working tree: that is the one
+      // view where a file git doesn't track is a hole in what you're reviewing.
+      const untracked = uncommitted ? await g.untrackedFiles(repoDir) : []
+      res.json({ diff, files, uncommitted, untracked })
     } catch (err) {
       next(err)
     }

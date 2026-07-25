@@ -6,9 +6,18 @@ Guidance for working in this repository.
 
 A zero-install CLI: run `npx reviewui` inside any git repo to open a local,
 GitHub-style code-review UI on **port 41096**. You browse the diff of your
-current branch against `main`/`master`, leave comments on lines or ranges, and
-generate a single prompt (copied to the clipboard and printed to the terminal)
-to paste into Claude Code.
+current branch against `main`/`master` - including work you haven't committed
+yet - leave comments on lines or ranges, and generate a single prompt (copied to
+the clipboard and printed to the terminal) to paste into your coding agent
+(Claude Code, Codex, or anything else that takes a prompt).
+
+Uncommitted work is modelled as a synthetic commit: `WORKTREE` in `git.js` is a
+sentinel that stands in for a sha, and every path branches on it before any ref
+assertion so it never reaches git. `finalIncludesWorktree` in `git.js` decides
+whether the default view spans the working tree; the diff route resolves that
+once per request and rewrites the query into the sentinel form. Refreshing is
+always user-initiated - never a focus listener or a poll - because comment
+widgets are keyed by a change that a silent refetch could remove.
 
 ## Commands
 
@@ -20,6 +29,7 @@ npm run lint         # ESLint (flat config)
 npm run format       # Prettier write   (format:check verifies in CI)
 npm run spell        # cspell
 node server/index.js # run from inside any git repo (serves web/dist)
+node server/index.js --help   # flags: --port, --base, --no-open, --version
 npm run dev:web      # Vite dev server with hot reload, proxies /api to :41096
 ```
 
@@ -37,7 +47,7 @@ set the same `REVIEWUI_PORT` for both commands so the proxy matches the backend.
 - **`server/`** - Node/Express. `index.js` is the CLI entry (validates git repo,
   binds 41096, opens browser). `app.js` defines the JSON API. `git.js` runs all
   git via `execFile` in the invocation directory. `prompt.js` assembles the
-  Claude Code prompt. Comments live in memory for one session.
+  review prompt. Comments live in memory for one session.
 - **`web/`** - React + Vite + Tailwind v4 app, built to `web/dist`. Source under
   `web/src`: `main.jsx` + `index.css` at the root, React components in
   `components/`, and non-UI helpers (`api`, `lineRange`, `highlight`) in `lib/`.

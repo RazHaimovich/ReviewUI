@@ -134,10 +134,10 @@ test('comments round-trip into the generated prompt', async () => {
   })
   assert.equal(promptRes.status, 200)
   const prompt = await promptRes.text()
-  assert.match(prompt, /## 1\. hello\.js:1/)
+  assert.match(prompt, /## 1\. hello\.js:1 \[must-fix\]/)
   assert.match(prompt, /Use a default value for name/)
   assert.match(prompt, /hello \$\{name\}/)
-  assert.match(prompt, /## 2\. src\/bye\.js:1 \(commented on commit abcdef1\)/)
+  assert.match(prompt, /## 2\. src\/bye\.js:1 \(commented on commit abcdef1\) \[must-fix\]/)
   assert.match(prompt, /locate the referenced snippet/)
 
   // delete removes from store and from the next prompt
@@ -150,7 +150,7 @@ test('comments round-trip into the generated prompt', async () => {
     })
   ).text()
   assert.doesNotMatch(after, /hello\.js:1/)
-  assert.match(after, /## 1\. src\/bye\.js:1/)
+  assert.match(after, /## 1\. src\/bye\.js:1 \(commented on commit abcdef1\) \[must-fix\]/)
 
   // invalid comment payloads are rejected
   assert.equal((await post({ body: 'no file' })).status, 400)
@@ -190,7 +190,7 @@ test('edit, exclude and summary shape the prompt', async () => {
 
   // multi-line range renders as start-end; summary section present
   let text = await prompt()
-  assert.match(text, /## 1\. hello\.js:1-3/)
+  assert.match(text, /## 1\. hello\.js:1-3 \[must-fix\]/)
   assert.match(text, /first \(edited\)/)
   assert.match(text, /## Overall\n\nPrefer smaller functions\./)
 
@@ -198,12 +198,12 @@ test('edit, exclude and summary shape the prompt', async () => {
   await patch(a.id, { included: false })
   text = await prompt()
   assert.doesNotMatch(text, /hello\.js:1-3/)
-  assert.match(text, /## 1\. src\/bye\.js:1/)
+  assert.match(text, /## 1\. src\/bye\.js:1 \[must-fix\]/)
 
   // re-include restores it
   await patch(a.id, { included: true })
   text = await prompt()
-  assert.match(text, /## 1\. hello\.js:1-3/)
+  assert.match(text, /## 1\. hello\.js:1-3 \[must-fix\]/)
 
   // guards
   assert.equal((await patch(a.id, { body: '  ' })).status, 400)
@@ -241,7 +241,7 @@ test('a whole-file comment needs no line and renders as (whole file) in the prom
       body: JSON.stringify({ base: 'main', head: 'feature' })
     })
   ).text()
-  assert.match(prompt, /## 1\. hello\.js \(whole file\)/)
+  assert.match(prompt, /## 1\. hello\.js \(whole file\) \[must-fix\]/)
   assert.match(prompt, /This module needs tests/)
 
   for (const c of await (await fetch(`${base}/api/comments`)).json()) {
@@ -290,4 +290,294 @@ test('GET /api/diff with an unknown branch returns a 500 with an error message',
   assert.equal(res.status, 500)
   const { error } = await res.json()
   assert.ok(error)
+})
+
+test('uncommitted work is the newest commit-bar entry, with no id', async () => {
+  const fx = makeFixtureRepo()
+  writeFileSync(path.join(fx.dir, 'hello.js'), 'export const greet = (name = "world") => `hello ${name}`;\n')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const commits = await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()
+    assert.equal(commits.length, 3) // two commits plus the working tree
+    const last = commits.at(-1)
+    assert.equal(last.sha, 'worktree')
+    assert.equal(last.worktree, true)
+    assert.equal(last.subject, 'Uncommitted changes')
+    assert.equal(last.shortSha, null, 'no id to show')
+    assert.equal(last.author, null)
+    assert.equal(last.date, null)
+
+    // "Uncommitted only" is what has not been committed yet.
+    const q = 'base=main&head=feature&commit=worktree'
+    const single = await (await fetch(`${b}/api/diff?${q}&mode=single`)).json()
+    assert.equal(single.diff, fx.git('diff', '-M', 'HEAD'))
+    assert.deepEqual(
+      single.files.map(f => f.path),
+      ['hello.js']
+    )
+
+    // "Branch + uncommitted" spans the whole branch from its fork point.
+    const mb = fx.git('merge-base', 'main', 'feature').trim()
+    const cumulative = await (await fetch(`${b}/api/diff?${q}&mode=cumulative`)).json()
+    assert.equal(cumulative.diff, fx.git('diff', '-M', mb))
+    assert.match(cumulative.diff, /name = "world"/)
+    assert.match(cumulative.diff, /bye\.js/, 'committed work is included too')
+
+    // The working tree says nothing about a branch that is not checked out.
+    const other = await (await fetch(`${b}/api/commits?base=feature&head=main`)).json()
+    assert.ok(
+      other.every(c => c.sha !== 'worktree'),
+      'no entry when head is not the checked-out branch'
+    )
+  } finally {
+    srv.close()
+  }
+})
+
+test('Final result spans the working tree when the checked-out branch is dirty', async () => {
+  const fx = makeFixtureRepo()
+  writeFileSync(path.join(fx.dir, 'uncommitted.js'), 'export const soon = () => 1\n')
+  fx.git('add', '-A') // staged but not committed
+  writeFileSync(path.join(fx.dir, 'hello.js'), 'export const greet = (name = "world") => `hello ${name}`;\n')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const mb = fx.git('merge-base', 'main', 'feature').trim()
+    const final = await (await fetch(`${b}/api/diff?base=main&head=feature`)).json()
+    assert.equal(final.uncommitted, true)
+    assert.equal(final.diff, fx.git('diff', '-M', mb))
+    assert.ok(
+      final.files.some(f => f.path === 'uncommitted.js'),
+      'staged-only file is in the default view'
+    )
+    assert.ok(
+      final.files.some(f => f.path === 'hello.js'),
+      'unstaged edit is in the default view'
+    )
+
+    // A single-file request from the same view must describe the same diff.
+    const one = await (await fetch(`${b}/api/diff?base=main&head=feature&file=hello.js`)).text()
+    assert.equal(one, fx.git('diff', '-M', mb, '--', 'hello.js'))
+
+    // Selecting a real commit still means that commit, not the working tree.
+    const commits = await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()
+    const first = await (
+      await fetch(`${b}/api/diff?base=main&head=feature&commit=${commits[0].sha}&mode=single`)
+    ).json()
+    assert.equal(first.uncommitted, false)
+    assert.doesNotMatch(first.diff, /name = "world"/)
+  } finally {
+    srv.close()
+  }
+})
+
+test('untracked files are counted while viewing the working tree, and only then', async () => {
+  const fx = makeFixtureRepo()
+  writeFileSync(path.join(fx.dir, 'hello.js'), 'export const greet = () => "hi";\n') // tracked edit
+  writeFileSync(path.join(fx.dir, 'scratch notes.md'), 'not added yet\n') // untracked, with a space
+  writeFileSync(path.join(fx.dir, '.gitignore'), 'ignored.txt\n')
+  writeFileSync(path.join(fx.dir, 'ignored.txt'), 'invisible\n')
+  fx.git('add', '.gitignore')
+  fx.git('commit', '-m', 'ignore some things')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const final = await (await fetch(`${b}/api/diff?base=main&head=feature`)).json()
+    assert.deepEqual(final.untracked, ['scratch notes.md'], 'unquoted, and gitignored files excluded')
+
+    // Not mentioned when looking at a commit: the omission only matters for the
+    // working tree.
+    const commits = await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()
+    const first = await (
+      await fetch(`${b}/api/diff?base=main&head=feature&commit=${commits[0].sha}&mode=single`)
+    ).json()
+    assert.deepEqual(first.untracked, [])
+
+    // Staging it moves it into the diff and out of the count.
+    fx.git('add', 'scratch notes.md')
+    const after = await (await fetch(`${b}/api/diff?base=main&head=feature`)).json()
+    assert.deepEqual(after.untracked, [])
+    assert.ok(after.files.some(f => f.path === 'scratch notes.md'))
+  } finally {
+    srv.close()
+  }
+})
+
+test('a clean working tree appends no entry, and Final result is unchanged', async () => {
+  const { diff, uncommitted } = await (await fetch(`${base}/api/diff?base=main&head=feature`)).json()
+  assert.equal(uncommitted, false)
+  assert.equal(diff, fixture.git('diff', 'main...feature'), 'byte-identical to the three-dot diff')
+})
+
+test('a clean working tree appends no entry', async () => {
+  const commits = await (await fetch(`${base}/api/commits?base=main&head=feature`)).json()
+  assert.equal(commits.length, 2)
+  assert.ok(commits.every(c => c.sha !== 'worktree'))
+})
+
+test('severity defaults to must-fix, can be changed, and is validated', async () => {
+  const post = payload =>
+    fetch(`${base}/api/comments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+  const patch = (id, payload) =>
+    fetch(`${base}/api/comments/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' })
+  }
+
+  const plain = await (await post({ filePath: 'hello.js', startLine: 1, snippet: 's', body: 'a' })).json()
+  assert.equal(plain.severity, 'must-fix')
+
+  const nit = await (
+    await post({ filePath: 'src/bye.js', startLine: 1, snippet: 's', body: 'b', severity: 'nit' })
+  ).json()
+  assert.equal(nit.severity, 'nit')
+
+  // editing can downgrade after the fact
+  assert.equal((await (await patch(plain.id, { severity: 'question' })).json()).severity, 'question')
+
+  // the set is closed on both create and update
+  assert.equal(
+    (await post({ filePath: 'hello.js', startLine: 1, snippet: 's', body: 'c', severity: 'urgent' })).status,
+    400
+  )
+  assert.equal((await patch(nit.id, { severity: 'whatever' })).status, 400)
+
+  const prompt = await (
+    await fetch(`${base}/api/prompt`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ base: 'main', head: 'feature' })
+    })
+  ).text()
+  assert.match(prompt, /## 1\. hello\.js:1 \[question\]/)
+  assert.match(prompt, /## 2\. src\/bye\.js:1 \[nit\]/)
+  assert.match(prompt, /\[must-fix\] has to be addressed/)
+})
+
+test('comments taken against the working tree say so in the prompt', async () => {
+  const post = payload =>
+    fetch(`${base}/api/comments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.json())
+  const prompt = () =>
+    fetch(`${base}/api/prompt`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ base: 'main', head: 'feature' })
+    }).then(r => r.text())
+
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' })
+  }
+
+  // Committed-only review: no caveat at all.
+  const committed = await post({ filePath: 'hello.js', startLine: 1, snippet: 's', body: 'a' })
+  assert.doesNotMatch(await prompt(), /uncommitted/)
+
+  // Selected the working-tree entry explicitly: named, not abbreviated to a sha.
+  await post({ filePath: 'hello.js', startLine: 2, snippet: 's', body: 'b', commitSha: 'worktree', mode: 'single' })
+  let text = await prompt()
+  assert.match(text, /## 2\. hello\.js:2 \(commented on uncommitted changes\) \[must-fix\]/)
+  assert.doesNotMatch(text, /commented on commit/, 'the sentinel is never abbreviated like a sha')
+
+  // Said once for the whole review, not per comment.
+  assert.equal(text.match(/some line numbers may have moved/g).length, 1)
+
+  // A Final-result comment on a dirty tree carries the flag without a commit id.
+  await fetch(`${base}/api/comments/${committed.id}`, { method: 'DELETE' })
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' })
+  }
+  const flagged = await post({
+    filePath: 'hello.js',
+    startLine: 1,
+    snippet: 's',
+    body: 'c',
+    commitSha: null,
+    uncommitted: true
+  })
+  assert.equal(flagged.uncommitted, true)
+  text = await prompt()
+  assert.match(text, /some line numbers may have moved/)
+  assert.doesNotMatch(text, /commented on/)
+})
+
+test('context widens a single file patch, and out-of-range values are rejected', async () => {
+  const q = 'base=main&head=feature&file=hello.js'
+  const res = await fetch(`${base}/api/diff?${q}&context=20`)
+  assert.equal(res.status, 200)
+  assert.equal(await res.text(), fixture.git('diff', '-M', '-U20', 'main...feature', '--', 'hello.js'))
+
+  // It becomes a git argument, so anything unusable is a client error.
+  for (const bad of ['nope', '-1', '100000', '1.5']) {
+    const r = await fetch(`${base}/api/diff?${q}&context=${bad}`)
+    assert.equal(r.status, 400, `context=${bad} should be rejected`)
+  }
+})
+
+test('ws=1 hides a whitespace-only change from both the patch and the file list', async () => {
+  const fx = makeFixtureRepo()
+  // A commit that only re-indents: the kind of change that makes a branch
+  // unreadable without -w.
+  writeFileSync(path.join(fx.dir, 'hello.js'), '    export const greet = (name) => `hello ${name}`;\n')
+  fx.git('add', '-A')
+  fx.git('commit', '-m', 'reindent')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const sha = (await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()).at(-1).sha
+    const q = `base=main&head=feature&commit=${sha}&mode=single`
+
+    const plain = await (await fetch(`${b}/api/diff?${q}`)).json()
+    assert.deepEqual(
+      plain.files.map(f => f.path),
+      ['hello.js']
+    )
+
+    // The file leaves the list entirely, so counts and hunks still agree.
+    const ignored = await (await fetch(`${b}/api/diff?${q}&ws=1`)).json()
+    assert.deepEqual(ignored.files, [])
+    assert.equal(ignored.diff.trim(), '')
+  } finally {
+    srv.close()
+  }
+})
+
+test('a base from --base overrides the detected default and joins the branch list', async () => {
+  // Its own server: this app is configured differently from the shared one.
+  const srv = createApp(fixture.dir, { defaultBase: 'feature' }).listen(0)
+  try {
+    const repo = await (await fetch(`http://localhost:${srv.address().port}/api/repo`)).json()
+    assert.equal(repo.defaultBase, 'feature')
+    assert.deepEqual(repo.branches.sort(), ['feature', 'main'])
+  } finally {
+    srv.close()
+  }
+})
+
+test('a base from --base that is not a branch is still offered to the picker', async () => {
+  const srv = createApp(fixture.dir, { defaultBase: 'v1.0.0' }).listen(0)
+  try {
+    const repo = await (await fetch(`http://localhost:${srv.address().port}/api/repo`)).json()
+    assert.equal(repo.defaultBase, 'v1.0.0')
+    assert.ok(repo.branches.includes('v1.0.0'))
+  } finally {
+    srv.close()
+  }
 })

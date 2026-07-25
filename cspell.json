@@ -33,6 +33,16 @@
     "numstat",
     "pathspec",
     "pathspecs",
-    "café"
+    "café",
+    "cmakelists",
+    "containerfile",
+    "rakefile",
+    "tfvars",
+    "extensionless",
+    "unhighlighted",
+    "stylesheet",
+    "pilcrow",
+    "reindent",
+    "worktree"
   ]
 }
