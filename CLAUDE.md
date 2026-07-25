@@ -6,10 +6,18 @@ Guidance for working in this repository.
 
 A zero-install CLI: run `npx reviewui` inside any git repo to open a local,
 GitHub-style code-review UI on **port 41096**. You browse the diff of your
-current branch against `main`/`master`, leave comments on lines or ranges, and
-generate a single prompt (copied to the clipboard and printed to the terminal)
-to paste into your coding agent (Claude Code, Codex, or anything else that
-takes a prompt).
+current branch against `main`/`master` - including work you haven't committed
+yet - leave comments on lines or ranges, and generate a single prompt (copied to
+the clipboard and printed to the terminal) to paste into your coding agent
+(Claude Code, Codex, or anything else that takes a prompt).
+
+Uncommitted work is modelled as a synthetic commit: `WORKTREE` in `git.js` is a
+sentinel that stands in for a sha, and every path branches on it before any ref
+assertion so it never reaches git. `finalIncludesWorktree` in `git.js` decides
+whether the default view spans the working tree; the diff route resolves that
+once per request and rewrites the query into the sentinel form. Refreshing is
+always user-initiated - never a focus listener or a poll - because comment
+widgets are keyed by a change that a silent refetch could remove.
 
 ## Commands
 
