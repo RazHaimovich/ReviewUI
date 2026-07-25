@@ -53,8 +53,8 @@ function FileDiff({
   const fileComments = comments.filter(c => c.scope === 'file')
   const lineComments = comments.filter(c => c.scope !== 'file')
 
-  const saveFileComment = body => {
-    onCreate({ filePath: path, scope: 'file', body })
+  const saveFileComment = (body, severity) => {
+    onCreate({ filePath: path, scope: 'file', body, severity })
     setFileDraft(false)
   }
 
@@ -91,12 +91,13 @@ function FileDiff({
   for (const c of lineComments) (byKey[c.changeKey] ??= []).push(c)
   if (draft?.open) byKey[draft.changeKey] ??= []
 
-  const saveDraft = body => {
+  const saveDraft = (body, severity) => {
     onCreate({
       filePath: path,
       changeKey: draft.changeKey,
       ...lineRange(draft.hunk.changes, draft.startIndex, draft.endIndex),
-      body
+      body,
+      severity
     })
     setDraft(null)
   }

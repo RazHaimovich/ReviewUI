@@ -134,10 +134,10 @@ test('comments round-trip into the generated prompt', async () => {
   })
   assert.equal(promptRes.status, 200)
   const prompt = await promptRes.text()
-  assert.match(prompt, /## 1\. hello\.js:1/)
+  assert.match(prompt, /## 1\. hello\.js:1 \[must-fix\]/)
   assert.match(prompt, /Use a default value for name/)
   assert.match(prompt, /hello \$\{name\}/)
-  assert.match(prompt, /## 2\. src\/bye\.js:1 \(commented on commit abcdef1\)/)
+  assert.match(prompt, /## 2\. src\/bye\.js:1 \(commented on commit abcdef1\) \[must-fix\]/)
   assert.match(prompt, /locate the referenced snippet/)
 
   // delete removes from store and from the next prompt
@@ -150,7 +150,7 @@ test('comments round-trip into the generated prompt', async () => {
     })
   ).text()
   assert.doesNotMatch(after, /hello\.js:1/)
-  assert.match(after, /## 1\. src\/bye\.js:1/)
+  assert.match(after, /## 1\. src\/bye\.js:1 \(commented on commit abcdef1\) \[must-fix\]/)
 
   // invalid comment payloads are rejected
   assert.equal((await post({ body: 'no file' })).status, 400)
@@ -190,7 +190,7 @@ test('edit, exclude and summary shape the prompt', async () => {
 
   // multi-line range renders as start-end; summary section present
   let text = await prompt()
-  assert.match(text, /## 1\. hello\.js:1-3/)
+  assert.match(text, /## 1\. hello\.js:1-3 \[must-fix\]/)
   assert.match(text, /first \(edited\)/)
   assert.match(text, /## Overall\n\nPrefer smaller functions\./)
 
@@ -198,12 +198,12 @@ test('edit, exclude and summary shape the prompt', async () => {
   await patch(a.id, { included: false })
   text = await prompt()
   assert.doesNotMatch(text, /hello\.js:1-3/)
-  assert.match(text, /## 1\. src\/bye\.js:1/)
+  assert.match(text, /## 1\. src\/bye\.js:1 \[must-fix\]/)
 
   // re-include restores it
   await patch(a.id, { included: true })
   text = await prompt()
-  assert.match(text, /## 1\. hello\.js:1-3/)
+  assert.match(text, /## 1\. hello\.js:1-3 \[must-fix\]/)
 
   // guards
   assert.equal((await patch(a.id, { body: '  ' })).status, 400)
@@ -241,7 +241,7 @@ test('a whole-file comment needs no line and renders as (whole file) in the prom
       body: JSON.stringify({ base: 'main', head: 'feature' })
     })
   ).text()
-  assert.match(prompt, /## 1\. hello\.js \(whole file\)/)
+  assert.match(prompt, /## 1\. hello\.js \(whole file\) \[must-fix\]/)
   assert.match(prompt, /This module needs tests/)
 
   for (const c of await (await fetch(`${base}/api/comments`)).json()) {
@@ -290,6 +290,54 @@ test('GET /api/diff with an unknown branch returns a 500 with an error message',
   assert.equal(res.status, 500)
   const { error } = await res.json()
   assert.ok(error)
+})
+
+test('severity defaults to must-fix, can be changed, and is validated', async () => {
+  const post = payload =>
+    fetch(`${base}/api/comments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+  const patch = (id, payload) =>
+    fetch(`${base}/api/comments/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' })
+  }
+
+  const plain = await (await post({ filePath: 'hello.js', startLine: 1, snippet: 's', body: 'a' })).json()
+  assert.equal(plain.severity, 'must-fix')
+
+  const nit = await (
+    await post({ filePath: 'src/bye.js', startLine: 1, snippet: 's', body: 'b', severity: 'nit' })
+  ).json()
+  assert.equal(nit.severity, 'nit')
+
+  // editing can downgrade after the fact
+  assert.equal((await (await patch(plain.id, { severity: 'question' })).json()).severity, 'question')
+
+  // the set is closed on both create and update
+  assert.equal(
+    (await post({ filePath: 'hello.js', startLine: 1, snippet: 's', body: 'c', severity: 'urgent' })).status,
+    400
+  )
+  assert.equal((await patch(nit.id, { severity: 'whatever' })).status, 400)
+
+  const prompt = await (
+    await fetch(`${base}/api/prompt`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ base: 'main', head: 'feature' })
+    })
+  ).text()
+  assert.match(prompt, /## 1\. hello\.js:1 \[question\]/)
+  assert.match(prompt, /## 2\. src\/bye\.js:1 \[nit\]/)
+  assert.match(prompt, /\[must-fix\] has to be addressed/)
 })
 
 test('context widens a single file patch, and out-of-range values are rejected', async () => {
