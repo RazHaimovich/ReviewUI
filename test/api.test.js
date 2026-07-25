@@ -434,6 +434,56 @@ test('severity defaults to must-fix, can be changed, and is validated', async ()
   assert.match(prompt, /\[must-fix\] has to be addressed/)
 })
 
+test('comments taken against the working tree say so in the prompt', async () => {
+  const post = payload =>
+    fetch(`${base}/api/comments`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.json())
+  const prompt = () =>
+    fetch(`${base}/api/prompt`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ base: 'main', head: 'feature' })
+    }).then(r => r.text())
+
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' })
+  }
+
+  // Committed-only review: no caveat at all.
+  const committed = await post({ filePath: 'hello.js', startLine: 1, snippet: 's', body: 'a' })
+  assert.doesNotMatch(await prompt(), /uncommitted/)
+
+  // Selected the working-tree entry explicitly: named, not abbreviated to a sha.
+  await post({ filePath: 'hello.js', startLine: 2, snippet: 's', body: 'b', commitSha: 'worktree', mode: 'single' })
+  let text = await prompt()
+  assert.match(text, /## 2\. hello\.js:2 \(commented on uncommitted changes\) \[must-fix\]/)
+  assert.doesNotMatch(text, /commented on commit/, 'the sentinel is never abbreviated like a sha')
+
+  // Said once for the whole review, not per comment.
+  assert.equal(text.match(/some line numbers may have moved/g).length, 1)
+
+  // A Final-result comment on a dirty tree carries the flag without a commit id.
+  await fetch(`${base}/api/comments/${committed.id}`, { method: 'DELETE' })
+  for (const c of await (await fetch(`${base}/api/comments`)).json()) {
+    await fetch(`${base}/api/comments/${c.id}`, { method: 'DELETE' })
+  }
+  const flagged = await post({
+    filePath: 'hello.js',
+    startLine: 1,
+    snippet: 's',
+    body: 'c',
+    commitSha: null,
+    uncommitted: true
+  })
+  assert.equal(flagged.uncommitted, true)
+  text = await prompt()
+  assert.match(text, /some line numbers may have moved/)
+  assert.doesNotMatch(text, /commented on/)
+})
+
 test('context widens a single file patch, and out-of-range values are rejected', async () => {
   const q = 'base=main&head=feature&file=hello.js'
   const res = await fetch(`${base}/api/diff?${q}&context=20`)

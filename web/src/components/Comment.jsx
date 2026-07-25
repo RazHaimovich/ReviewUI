@@ -102,10 +102,15 @@ export function CommentCard({ comment, onUpdate, onDelete }) {
         >
           {(SEVERITY[comment.severity] ?? SEVERITY['must-fix']).label}
         </span>
-        {comment.commitSha && (
-          <span className="rounded bg-panel2 px-1.5 font-mono text-[0.6875rem] text-muted">
-            @{comment.commitSha.slice(0, 7)}
-          </span>
+        {/* The working tree has no id, so it is named rather than abbreviated. */}
+        {comment.commitSha === 'worktree' ? (
+          <span className="rounded bg-panel2 px-1.5 font-mono text-[0.6875rem] text-muted">uncommitted</span>
+        ) : (
+          comment.commitSha && (
+            <span className="rounded bg-panel2 px-1.5 font-mono text-[0.6875rem] text-muted">
+              @{comment.commitSha.slice(0, 7)}
+            </span>
+          )
         )}
         <span className="grow" />
         <label

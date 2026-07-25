@@ -164,6 +164,7 @@ export default function App() {
   const [focused, setFocused] = useState(null)
   const filterRef = useRef(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
+  const [uncommittedView, setUncommittedView] = useState(false)
   const [error, setError] = useState(null)
   const [dark, setDark] = useTheme()
   const [fontSize, cycleFontSize] = useFontSize()
@@ -214,12 +215,15 @@ export default function App() {
     let stale = false
     setLoadingDiff(true)
     getDiff(diffParams)
-      .then(({ diff, files: list }) => {
+      .then(({ diff, files: list, uncommitted }) => {
         if (stale) return
         const map = new Map()
         if (diff.trim()) for (const f of parseDiff(diff)) map.set(filePath(f), f)
         setParsed(map)
         setFileList(list ?? [])
+        // The server decides whether this view spans the working tree, so
+        // comments made here can record that their lines may move.
+        setUncommittedView(Boolean(uncommitted))
         setError(null)
       })
       .catch(err => !stale && setError(err.message))
@@ -255,11 +259,12 @@ export default function App() {
       createComment({
         ...comment,
         commitSha: view === 'final' ? null : view,
-        mode: view === 'final' ? null : mode
+        mode: view === 'final' ? null : mode,
+        uncommitted: uncommittedView
       })
         .then(refreshComments)
         .catch(err => setError(err.message)),
-    [view, mode, refreshComments]
+    [view, mode, uncommittedView, refreshComments]
   )
   const onUpdateComment = useCallback(
     (id, patch) =>
