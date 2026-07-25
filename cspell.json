@@ -40,6 +40,8 @@
     "tfvars",
     "extensionless",
     "unhighlighted",
-    "stylesheet"
+    "stylesheet",
+    "pilcrow",
+    "reindent"
   ]
 }

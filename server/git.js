@@ -52,6 +52,13 @@ export async function commits(cwd, base, head) {
     })
 }
 
+// `-w` hides whitespace-only differences. It must reach the patch AND the
+// numstat/name-status commands, or the file list's counts and its oversized
+// threshold would describe a different diff from the one being rendered.
+function wsArgs({ ws }) {
+  return ws ? ['-w'] : []
+}
+
 // Pathspec that limits a diff to one file, or excludes a set of files.
 // `--` protects paths that could otherwise be parsed as flags.
 function pathArgs({ file, exclude }) {
@@ -63,17 +70,18 @@ function pathArgs({ file, exclude }) {
 export async function diff(cwd, opts) {
   const { base, head, commit, mode } = opts
   const paths = pathArgs(opts)
+  const ws = wsArgs(opts)
   // `-M` so the patch's rename detection matches the file list's, whatever the
   // user's diff.renames config is.
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {
       const mb = await mergeBase(cwd, base, head)
-      return git(cwd, 'diff', '-M', `${mb}..${commit}`, ...paths)
+      return git(cwd, 'diff', '-M', ...ws, `${mb}..${commit}`, ...paths)
     }
-    return git(cwd, 'show', '-M', '--format=', '--patch', commit, ...paths)
+    return git(cwd, 'show', '-M', ...ws, '--format=', '--patch', commit, ...paths)
   }
-  return git(cwd, 'diff', '-M', `${assertRef(base)}...${assertRef(head)}`, ...paths)
+  return git(cwd, 'diff', '-M', ...ws, `${assertRef(base)}...${assertRef(head)}`, ...paths)
 }
 
 const STATUS_TYPE = { A: 'add', D: 'delete', M: 'modify', T: 'modify' }
@@ -115,17 +123,19 @@ function parseNameStatusZ(out) {
 
 // Argument list (no patch) for `which` = '--numstat' | '--name-status'.
 // `-M` enables rename detection (diff-tree, unlike `git diff`, leaves it off).
-async function statArgs(cwd, { base, head, commit, mode }, which) {
+async function statArgs(cwd, opts, which) {
+  const { base, head, commit, mode } = opts
+  const ws = wsArgs(opts)
   if (commit) {
     assertRef(commit)
     if (mode === 'cumulative') {
       const mb = await mergeBase(cwd, base, head)
-      return ['diff', which, '-M', '-z', `${mb}..${commit}`]
+      return ['diff', which, '-M', '-z', ...ws, `${mb}..${commit}`]
     }
     // `git show --numstat --no-patch` suppresses numstat; diff-tree is the right tool.
-    return ['diff-tree', '--no-commit-id', '-r', '-M', '-z', which, commit]
+    return ['diff-tree', '--no-commit-id', '-r', '-M', '-z', ...ws, which, commit]
   }
-  return ['diff', which, '-M', '-z', `${assertRef(base)}...${assertRef(head)}`]
+  return ['diff', which, '-M', '-z', ...ws, `${assertRef(base)}...${assertRef(head)}`]
 }
 
 // Per-file summary: path, add/del counts, binary flag, and change type.

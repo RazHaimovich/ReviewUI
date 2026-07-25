@@ -11,6 +11,7 @@ import {
   Loader2Icon,
   MessagesSquareIcon,
   MoonIcon,
+  PilcrowIcon,
   RotateCcwIcon,
   Rows3Icon,
   SparklesIcon,
@@ -129,6 +130,14 @@ function useFontSize() {
   return [size, cycle]
 }
 
+function useIgnoreWs() {
+  const [ignoreWs, setIgnoreWs] = useState(() => localStorage.reviewuiIgnoreWs === '1')
+  useEffect(() => {
+    localStorage.reviewuiIgnoreWs = ignoreWs ? '1' : '0'
+  }, [ignoreWs])
+  return [ignoreWs, () => setIgnoreWs(v => !v)]
+}
+
 export default function App() {
   const [repo, setRepo] = useState(null)
   const [base, setBase] = useState(null)
@@ -150,6 +159,7 @@ export default function App() {
   const [error, setError] = useState(null)
   const [dark, setDark] = useTheme()
   const [fontSize, cycleFontSize] = useFontSize()
+  const [ignoreWs, toggleIgnoreWs] = useIgnoreWs()
 
   useEffect(() => {
     getRepo()
@@ -178,8 +188,11 @@ export default function App() {
   const diffParams = useMemo(() => {
     const params = { base, head }
     if (view !== 'final') Object.assign(params, { commit: view, mode })
+    // Only present when on: an absent param can't be misread as truthy the way
+    // the string "false" would be.
+    if (ignoreWs) params.ws = 1
     return params
-  }, [base, head, view, mode])
+  }, [base, head, view, mode, ignoreWs])
 
   // Identifies the current diff view; a late async load whose key no longer
   // matches is discarded so it can't inject a stale view's hunks. Derived from
@@ -411,6 +424,19 @@ export default function App() {
                 </Tooltip>
               ))}
             </div>
+
+            <Tooltip label={ignoreWs ? 'Show whitespace changes' : 'Ignore whitespace changes'}>
+              <button
+                onClick={toggleIgnoreWs}
+                aria-pressed={ignoreWs}
+                className={clsx(
+                  'grid size-8 place-items-center rounded-md',
+                  ignoreWs ? 'bg-accent-soft text-accent' : 'bg-panel2 text-muted hover:bg-line hover:text-ink'
+                )}
+              >
+                <PilcrowIcon className="size-4" />
+              </button>
+            </Tooltip>
 
             <Tooltip label={`Font size: ${fontSize}`}>
               <button onClick={cycleFontSize} className={iconButton}>

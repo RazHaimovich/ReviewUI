@@ -292,6 +292,35 @@ test('GET /api/diff with an unknown branch returns a 500 with an error message',
   assert.ok(error)
 })
 
+test('ws=1 hides a whitespace-only change from both the patch and the file list', async () => {
+  const fx = makeFixtureRepo()
+  // A commit that only re-indents: the kind of change that makes a branch
+  // unreadable without -w.
+  writeFileSync(path.join(fx.dir, 'hello.js'), '    export const greet = (name) => `hello ${name}`;\n')
+  fx.git('add', '-A')
+  fx.git('commit', '-m', 'reindent')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const sha = (await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()).at(-1).sha
+    const q = `base=main&head=feature&commit=${sha}&mode=single`
+
+    const plain = await (await fetch(`${b}/api/diff?${q}`)).json()
+    assert.deepEqual(
+      plain.files.map(f => f.path),
+      ['hello.js']
+    )
+
+    // The file leaves the list entirely, so counts and hunks still agree.
+    const ignored = await (await fetch(`${b}/api/diff?${q}&ws=1`)).json()
+    assert.deepEqual(ignored.files, [])
+    assert.equal(ignored.diff.trim(), '')
+  } finally {
+    srv.close()
+  }
+})
+
 test('a base from --base overrides the detected default and joins the branch list', async () => {
   // Its own server: this app is configured differently from the shared one.
   const srv = createApp(fixture.dir, { defaultBase: 'feature' }).listen(0)
