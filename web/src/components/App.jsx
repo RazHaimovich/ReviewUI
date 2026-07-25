@@ -30,6 +30,7 @@ import {
   generatePrompt
 } from '../lib/api.js'
 import { filterEntries, isFiltering, NO_FILTER } from '../lib/fileFilter.js'
+import { isTypingTarget, nextPath } from '../lib/keyNav.js'
 import CommitBar from './CommitBar.jsx'
 import CommentsModal from './CommentsModal.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
@@ -37,6 +38,7 @@ import FileDiff, { filePath } from './FileDiff.jsx'
 import FileTree from './FileTree.jsx'
 import PromptModal from './PromptModal.jsx'
 import Select from './Select.jsx'
+import ShortcutsModal from './ShortcutsModal.jsx'
 import Tooltip from './Tooltip.jsx'
 
 // Stable reference for files with no comments, so React.memo on FileDiff holds.
@@ -158,6 +160,8 @@ export default function App() {
   const [confirmReset, setConfirmReset] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [filter, setFilter] = useState(NO_FILTER)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [focused, setFocused] = useState(null)
   const filterRef = useRef(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
   const [error, setError] = useState(null)
@@ -355,6 +359,81 @@ export default function App() {
     [fileList, parsed]
   )
 
+  const treeEntries = useMemo(
+    () =>
+      entries.map(e => ({
+        path: e.path,
+        type: e.type ?? 'modify',
+        adds: e.adds,
+        dels: e.dels,
+        comments: (commentsByPath.get(e.path) ?? NO_COMMENTS).length,
+        reviewed: reviewed.has(e.path)
+      })),
+    [entries, commentsByPath, reviewed]
+  )
+
+  // The sidebar shows the filtered list; the diff column still shows everything.
+  const visibleEntries = useMemo(() => filterEntries(treeEntries, filter), [treeEntries, filter])
+  const filtering = isFiltering(filter)
+
+  // Everything the key handler needs, refreshed every render so the listener can
+  // be attached once instead of resubscribing whenever the review changes.
+  const keysRef = useRef(null)
+  keysRef.current = {
+    paths: visibleEntries.map(e => e.path),
+    focused,
+    setFocused,
+    toggleReviewed,
+    canGenerate: comments.length > 0,
+    onGenerate,
+    focusFilter: () => filterRef.current?.focus(),
+    showShortcuts: () => setShowShortcuts(true),
+    // Closes the topmost dialog, matching the order they stack in the tree.
+    closeTopModal: () => {
+      if (confirmReset) setConfirmReset(false)
+      else if (prompt !== null) setPrompt(null)
+      else if (showComments) setShowComments(false)
+      else if (showShortcuts) setShowShortcuts(false)
+    }
+  }
+
+  useEffect(() => {
+    const onKey = event => {
+      // Let the browser and OS keep their chords.
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const keys = keysRef.current
+      const target = event.target
+      const typing = isTypingTarget(target)
+
+      if (event.key === 'Escape') {
+        if (typing) target.blur()
+        else keys.closeTopModal()
+        return
+      }
+      // Writing a comment must never trigger navigation.
+      if (typing) return
+
+      if (event.key === 'j' || event.key === 'k') {
+        const next = nextPath(keys.paths, keys.focused, event.key === 'j' ? 1 : -1)
+        if (!next) return
+        event.preventDefault()
+        keys.setFocused(next)
+        document.getElementById(next)?.scrollIntoView({ block: 'start' })
+      } else if (event.key === 'v') {
+        if (keys.focused) keys.toggleReviewed(keys.focused)
+      } else if (event.key === '/') {
+        event.preventDefault()
+        keys.focusFilter()
+      } else if (event.key === 'g') {
+        if (keys.canGenerate) keys.onGenerate()
+      } else if (event.key === '?') {
+        keys.showShortcuts()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   if (!repo) {
     return (
       <div className="grid min-h-screen place-items-center bg-bg text-muted">
@@ -369,19 +448,6 @@ export default function App() {
       </div>
     )
   }
-
-  const treeEntries = entries.map(e => ({
-    path: e.path,
-    type: e.type ?? 'modify',
-    adds: e.adds,
-    dels: e.dels,
-    comments: (commentsByPath.get(e.path) ?? NO_COMMENTS).length,
-    reviewed: reviewed.has(e.path)
-  }))
-
-  // The sidebar shows the filtered list; the diff column still shows everything.
-  const visibleEntries = filterEntries(treeEntries, filter)
-  const filtering = isFiltering(filter)
 
   const paths = fileList.map(s => s.path)
   const allCollapsed = paths.length > 0 && paths.every(p => collapsed.has(p))
@@ -611,6 +677,7 @@ export default function App() {
                 onDelete={onDeleteComment}
                 onLoad={loadFile}
                 viewKey={diffKey}
+                focused={focused === e.path}
               />
             ))
           )}
@@ -639,6 +706,8 @@ export default function App() {
           onClose={() => setShowComments(false)}
         />
       )}
+
+      {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
 
       {confirmReset && (
         <ConfirmModal

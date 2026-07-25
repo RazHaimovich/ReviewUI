@@ -31,7 +31,8 @@ function FileDiff({
   onUpdate,
   onDelete,
   onLoad,
-  viewKey
+  viewKey,
+  focused
 }) {
   // draft: { hunk, anchorIndex, startIndex, endIndex, changeKey, open }
   const [draft, setDraft] = useState(null)
@@ -191,7 +192,13 @@ function FileDiff({
           : null
 
   return (
-    <section id={path} className="mb-4 scroll-mt-28 rounded-lg border border-line bg-panel">
+    <section
+      id={path}
+      className={clsx(
+        'mb-4 scroll-mt-28 rounded-lg border bg-panel',
+        focused ? 'border-accent ring-1 ring-accent' : 'border-line'
+      )}
+    >
       <header className="sticky top-[6.1rem] z-5 flex items-center gap-2 rounded-t-lg border-b border-line bg-panel2 px-3 py-2 font-mono text-xs">
         <Tooltip label={collapsed ? 'Expand file' : 'Collapse file'}>
           <button
