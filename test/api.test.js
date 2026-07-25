@@ -291,3 +291,26 @@ test('GET /api/diff with an unknown branch returns a 500 with an error message',
   const { error } = await res.json()
   assert.ok(error)
 })
+
+test('a base from --base overrides the detected default and joins the branch list', async () => {
+  // Its own server: this app is configured differently from the shared one.
+  const srv = createApp(fixture.dir, { defaultBase: 'feature' }).listen(0)
+  try {
+    const repo = await (await fetch(`http://localhost:${srv.address().port}/api/repo`)).json()
+    assert.equal(repo.defaultBase, 'feature')
+    assert.deepEqual(repo.branches.sort(), ['feature', 'main'])
+  } finally {
+    srv.close()
+  }
+})
+
+test('a base from --base that is not a branch is still offered to the picker', async () => {
+  const srv = createApp(fixture.dir, { defaultBase: 'v1.0.0' }).listen(0)
+  try {
+    const repo = await (await fetch(`http://localhost:${srv.address().port}/api/repo`)).json()
+    assert.equal(repo.defaultBase, 'v1.0.0')
+    assert.ok(repo.branches.includes('v1.0.0'))
+  } finally {
+    srv.close()
+  }
+})

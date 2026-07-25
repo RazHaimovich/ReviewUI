@@ -33,10 +33,21 @@ configure.
 
 ## Options
 
-| Variable           | Effect                                                   |
-| ------------------ | -------------------------------------------------------- |
-| `REVIEWUI_PORT`    | Pin an exact port. Unset, it auto-increments from 41096. |
-| `REVIEWUI_NO_OPEN` | Set to any value to skip opening the browser.            |
+```sh
+npx reviewui --help
+```
+
+| Flag            | Effect                                                             |
+| --------------- | ------------------------------------------------------------------ |
+| `--port <n>`    | Pin an exact port. Fails if taken; unset, it auto-increments.      |
+| `--base <ref>`  | Branch, tag or commit to compare against. Default `main`/`master`. |
+| `--no-open`     | Do not open a browser.                                             |
+| `-h, --help`    | Show usage.                                                        |
+| `-v, --version` | Show the version.                                                  |
+
+`REVIEWUI_PORT` and `REVIEWUI_NO_OPEN` do the same as `--port` and `--no-open`.
+A flag wins over the matching environment variable, and a `--base` that does not
+resolve fails at startup rather than in the browser.
 
 The server binds to `127.0.0.1` only, keeps comments in memory for the session,
 and never writes into the repository it is reviewing.

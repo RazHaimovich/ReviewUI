@@ -9,7 +9,7 @@ import { promptRoutes } from './routes/prompt.js'
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
 
-export function createApp(repoDir) {
+export function createApp(repoDir, { defaultBase = null } = {}) {
   const app = express()
   app.use(express.json())
 
@@ -21,7 +21,7 @@ export function createApp(repoDir) {
 
   const store = createCommentsStore()
 
-  app.use('/api', repoRoutes(repoDir))
+  app.use('/api', repoRoutes(repoDir, defaultBase))
   app.use('/api', diffRoutes(repoDir))
   app.use('/api', commentsRoutes(store))
   app.use('/api', promptRoutes(repoDir, store))

@@ -21,6 +21,7 @@ npm run lint         # ESLint (flat config)
 npm run format       # Prettier write   (format:check verifies in CI)
 npm run spell        # cspell
 node server/index.js # run from inside any git repo (serves web/dist)
+node server/index.js --help   # flags: --port, --base, --no-open, --version
 npm run dev:web      # Vite dev server with hot reload, proxies /api to :41096
 ```
 
