@@ -62,6 +62,17 @@ export async function isDirty(cwd) {
   return (await git(cwd, 'diff', 'HEAD', '--name-only')).trim() !== ''
 }
 
+// Paths git has never been told about. No diff can show them, so they are
+// reported as a count instead of being silently absent. `-z` keeps paths
+// unquoted, and gitignored files are already excluded by status.
+export async function untrackedFiles(cwd) {
+  const out = await git(cwd, 'status', '--porcelain', '--untracked-files=all', '-z')
+  return out
+    .split('\0')
+    .filter(entry => entry.startsWith('?? '))
+    .map(entry => entry.slice(3))
+}
+
 export async function mergeBase(cwd, base, head) {
   return (await git(cwd, 'merge-base', assertRef(base), assertRef(head))).trim()
 }

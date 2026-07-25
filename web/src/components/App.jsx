@@ -165,6 +165,10 @@ export default function App() {
   const filterRef = useRef(null)
   const [loadingDiff, setLoadingDiff] = useState(false)
   const [uncommittedView, setUncommittedView] = useState(false)
+  const [untracked, setUntracked] = useState([])
+  const [notice, setNotice] = useState(null)
+  // Bumped by Refresh to re-run the fetches without changing what is requested.
+  const [reloadToken, setReloadToken] = useState(0)
   const [error, setError] = useState(null)
   const [dark, setDark] = useTheme()
   const [fontSize, cycleFontSize] = useFontSize()
@@ -183,13 +187,31 @@ export default function App() {
       .catch(() => {})
   }, [])
 
+  // Changing the comparison starts you at the top; refreshing must not, so this
+  // is deliberately separate from the fetch below.
+  useEffect(() => {
+    setView('final')
+  }, [base, head])
+
+  const viewRef = useRef(view)
+  viewRef.current = view
+
   useEffect(() => {
     if (!base || !head) return
-    setView('final')
     getCommits({ base, head })
-      .then(setCommits)
+      .then(list => {
+        setCommits(list)
+        // If what you were looking at is no longer in the branch - you committed
+        // it, a rebase rewrote it, it was dropped - fall back to the one view
+        // that always exists rather than leaving you on an empty screen.
+        const current = viewRef.current
+        if (current !== 'final' && !list.some(c => c.sha === current)) {
+          setView('final')
+          setNotice('What you were viewing is no longer in this branch, so this is the final result.')
+        }
+      })
       .catch(err => setError(err.message))
-  }, [base, head])
+  }, [base, head, reloadToken])
 
   // The single derivation of "which diff am I looking at". Both the whole-diff
   // fetch and the single-file fetch send it, so a new request parameter is added
@@ -215,7 +237,7 @@ export default function App() {
     let stale = false
     setLoadingDiff(true)
     getDiff(diffParams)
-      .then(({ diff, files: list, uncommitted }) => {
+      .then(({ diff, files: list, uncommitted, untracked: untrackedPaths }) => {
         if (stale) return
         const map = new Map()
         if (diff.trim()) for (const f of parseDiff(diff)) map.set(filePath(f), f)
@@ -224,6 +246,7 @@ export default function App() {
         // The server decides whether this view spans the working tree, so
         // comments made here can record that their lines may move.
         setUncommittedView(Boolean(uncommitted))
+        setUntracked(untrackedPaths ?? [])
         setError(null)
       })
       .catch(err => !stale && setError(err.message))
@@ -231,7 +254,7 @@ export default function App() {
     return () => {
       stale = true
     }
-  }, [diffParams])
+  }, [diffParams, reloadToken])
 
   // Fetches one file's diff and merges it in: used both to load a long file the
   // server omitted, and to re-fetch a file with more context lines.
@@ -252,6 +275,24 @@ export default function App() {
     },
     [diffParams]
   )
+
+  // Refreshing is always a deliberate act: nothing here polls or listens for
+  // focus. A working tree changes under you, and comment widgets are keyed by a
+  // change that a silent refetch could remove, which would make a comment vanish
+  // from the file while it stayed in the store and in the prompt.
+  const onRefresh = () => {
+    setNotice(null)
+    getRepo()
+      .then(info => {
+        setRepo(info)
+        // A branch that disappeared while reviewing would otherwise leave the
+        // picker pointing at nothing.
+        if (!info.branches.includes(base)) setBase(info.defaultBase ?? info.current)
+        if (!info.branches.includes(head)) setHead(info.current)
+      })
+      .catch(err => setError(err.message))
+    setReloadToken(t => t + 1)
+  }
 
   const refreshComments = useCallback(() => getComments().then(setComments), [])
   const onCreateComment = useCallback(
@@ -595,7 +636,14 @@ export default function App() {
           </Tooltip>
         </div>
         <div className="border-t border-line px-4 py-2">
-          <CommitBar commits={commits} view={view} mode={mode} onView={setView} onMode={setMode} />
+          <CommitBar
+            commits={commits}
+            view={view}
+            mode={mode}
+            onView={setView}
+            onMode={setMode}
+            onRefresh={onRefresh}
+          />
         </div>
       </header>
 
@@ -603,6 +651,15 @@ export default function App() {
         <p className="mx-4 mt-4 rounded-md border border-del/30 bg-del/10 px-3 py-2 font-mono text-xs text-del">
           {error}
         </p>
+      )}
+
+      {notice && (
+        <div className="mx-4 mt-4 flex items-start gap-2 rounded-md border border-line bg-panel2 px-3 py-2 text-xs text-muted">
+          <span>{notice}</span>
+          <button onClick={() => setNotice(null)} className="ml-auto shrink-0 text-faint hover:text-ink">
+            Dismiss
+          </button>
+        </div>
       )}
 
       <main className="mx-auto flex max-w-[1600px] items-start gap-5 p-4">
@@ -647,6 +704,17 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          {untracked.length > 0 && (
+            <p
+              className="mb-1 px-2 text-[0.6875rem] leading-snug text-muted"
+              title={untracked.join('\n')}
+              aria-label={`${untracked.length} untracked files are not shown`}
+            >
+              {untracked.length} untracked {untracked.length === 1 ? 'file' : 'files'} not shown.{' '}
+              <span className="font-mono">git add</span> to include.
+            </p>
+          )}
 
           {loadingDiff ? (
             <TreeSkeleton />

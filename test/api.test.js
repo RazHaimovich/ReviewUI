@@ -374,6 +374,39 @@ test('Final result spans the working tree when the checked-out branch is dirty',
   }
 })
 
+test('untracked files are counted while viewing the working tree, and only then', async () => {
+  const fx = makeFixtureRepo()
+  writeFileSync(path.join(fx.dir, 'hello.js'), 'export const greet = () => "hi";\n') // tracked edit
+  writeFileSync(path.join(fx.dir, 'scratch notes.md'), 'not added yet\n') // untracked, with a space
+  writeFileSync(path.join(fx.dir, '.gitignore'), 'ignored.txt\n')
+  writeFileSync(path.join(fx.dir, 'ignored.txt'), 'invisible\n')
+  fx.git('add', '.gitignore')
+  fx.git('commit', '-m', 'ignore some things')
+
+  const srv = createApp(fx.dir).listen(0)
+  const b = `http://localhost:${srv.address().port}`
+  try {
+    const final = await (await fetch(`${b}/api/diff?base=main&head=feature`)).json()
+    assert.deepEqual(final.untracked, ['scratch notes.md'], 'unquoted, and gitignored files excluded')
+
+    // Not mentioned when looking at a commit: the omission only matters for the
+    // working tree.
+    const commits = await (await fetch(`${b}/api/commits?base=main&head=feature`)).json()
+    const first = await (
+      await fetch(`${b}/api/diff?base=main&head=feature&commit=${commits[0].sha}&mode=single`)
+    ).json()
+    assert.deepEqual(first.untracked, [])
+
+    // Staging it moves it into the diff and out of the count.
+    fx.git('add', 'scratch notes.md')
+    const after = await (await fetch(`${b}/api/diff?base=main&head=feature`)).json()
+    assert.deepEqual(after.untracked, [])
+    assert.ok(after.files.some(f => f.path === 'scratch notes.md'))
+  } finally {
+    srv.close()
+  }
+})
+
 test('a clean working tree appends no entry, and Final result is unchanged', async () => {
   const { diff, uncommitted } = await (await fetch(`${base}/api/diff?base=main&head=feature`)).json()
   assert.equal(uncommitted, false)

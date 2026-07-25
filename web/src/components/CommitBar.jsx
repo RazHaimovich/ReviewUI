@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import { ChevronLeftIcon, ChevronRightIcon, RefreshCwIcon } from 'lucide-react'
 import Select from './Select.jsx'
 import Tooltip from './Tooltip.jsx'
 
@@ -17,7 +17,7 @@ function NavButton({ active, children, ...props }) {
   )
 }
 
-export default function CommitBar({ commits, view, mode, onView, onMode }) {
+export default function CommitBar({ commits, view, mode, onView, onMode, onRefresh }) {
   const index = commits.findIndex(c => c.sha === view)
   const selected = index >= 0 ? commits[index] : null
 
@@ -102,6 +102,15 @@ export default function CommitBar({ commits, view, mode, onView, onMode }) {
           )}
         </>
       )}
+
+      <span className="grow" />
+
+      <Tooltip label="Re-read the repository. Nothing reloads on its own.">
+        <NavButton onClick={onRefresh}>
+          <RefreshCwIcon className="size-3.5" />
+          Refresh
+        </NavButton>
+      </Tooltip>
     </div>
   )
 }

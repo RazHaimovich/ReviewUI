@@ -47,7 +47,11 @@ export function diffRoutes(repoDir) {
       const diff = await g.diff(repoDir, { ...query, exclude })
       // Tells the client whether what it is looking at includes uncommitted work,
       // whether it asked for that or got it from the default view.
-      res.json({ diff, files, uncommitted: includeWorktree || req.query.commit === g.WORKTREE })
+      const uncommitted = includeWorktree || req.query.commit === g.WORKTREE
+      // Only worth mentioning while looking at the working tree: that is the one
+      // view where a file git doesn't track is a hole in what you're reviewing.
+      const untracked = uncommitted ? await g.untrackedFiles(repoDir) : []
+      res.json({ diff, files, uncommitted, untracked })
     } catch (err) {
       next(err)
     }
