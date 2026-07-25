@@ -8,7 +8,8 @@ A zero-install CLI: run `npx reviewui` inside any git repo to open a local,
 GitHub-style code-review UI on **port 41096**. You browse the diff of your
 current branch against `main`/`master`, leave comments on lines or ranges, and
 generate a single prompt (copied to the clipboard and printed to the terminal)
-to paste into Claude Code.
+to paste into your coding agent (Claude Code, Codex, or anything else that
+takes a prompt).
 
 ## Commands
 
@@ -37,7 +38,7 @@ set the same `REVIEWUI_PORT` for both commands so the proxy matches the backend.
 - **`server/`** - Node/Express. `index.js` is the CLI entry (validates git repo,
   binds 41096, opens browser). `app.js` defines the JSON API. `git.js` runs all
   git via `execFile` in the invocation directory. `prompt.js` assembles the
-  Claude Code prompt. Comments live in memory for one session.
+  review prompt. Comments live in memory for one session.
 - **`web/`** - React + Vite + Tailwind v4 app, built to `web/dist`. Source under
   `web/src`: `main.jsx` + `index.css` at the root, React components in
   `components/`, and non-UI helpers (`api`, `lineRange`, `highlight`) in `lib/`.

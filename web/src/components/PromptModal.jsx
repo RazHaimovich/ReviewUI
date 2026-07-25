@@ -31,7 +31,7 @@ export default function PromptModal({ text, summary, onSummaryChange, onRegenera
             <span className="grid size-6 place-items-center rounded-md bg-accent-soft text-accent">
               <TerminalIcon className="size-3.5" />
             </span>
-            <h2 className="text-sm font-semibold">Prompt for Claude Code</h2>
+            <h2 className="text-sm font-semibold">Prompt for your coding agent</h2>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <button
