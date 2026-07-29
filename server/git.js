@@ -79,13 +79,15 @@ export async function mergeBase(cwd, base, head) {
 
 export async function commits(cwd, base, head) {
   const mb = await mergeBase(cwd, base, head)
-  const out = await git(cwd, 'log', '--reverse', '--format=%H%x1f%h%x1f%s%x1f%an%x1f%aI', `${mb}..${assertRef(head)}`)
+  const out = await git(cwd, 'log', '--reverse', '--format=%H%x1f%s%x1f%an%x1f%aI', `${mb}..${assertRef(head)}`)
   const list = out
     .split('\n')
     .filter(Boolean)
     .map(line => {
-      const [sha, shortSha, subject, author, date] = line.split('\x1f')
-      return { sha, shortSha, subject, author, date }
+      const [sha, subject, author, date] = line.split('\x1f')
+      // Sliced rather than asked of git (`%h`): `%h` obeys core.abbrev, so a repo
+      // configured for longer ids would show them. GitHub always shows 7.
+      return { sha, shortSha: sha.slice(0, 7), subject, author, date }
     })
 
   // Uncommitted work is the newest entry, but only on the branch that is

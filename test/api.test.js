@@ -51,7 +51,8 @@ test('GET /api/commits lists branch commits oldest-first', async () => {
   )
   for (const c of commits) {
     assert.match(c.sha, /^[0-9a-f]{40}$/)
-    assert.ok(c.shortSha && c.author && c.date)
+    assert.equal(c.shortSha, c.sha.slice(0, 7), 'GitHub-length id, not core.abbrev')
+    assert.ok(c.author && c.date)
   }
 })
 
